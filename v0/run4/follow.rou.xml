@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+
+    <!-- Lead vehicle -->
+    <vType id="lead"
+           length="5.0"
+           width="2.0"
+           guiShape="passenger"
+           color="0,1,0"
+           accel="2.0"
+           decel="4.5"
+           maxSpeed="20"
+           sigma="0"/>
+
+    <!-- Ego vehicle -->
+    <vType id="ego"
+           length="5.0"
+           width="2.0"
+           guiShape="passenger"
+           color="1,0,1"
+           accel="2.5"
+           decel="4.5"
+           maxSpeed="50"
+           sigma="0"/>
+
+    <route id="r_forward" edges="e0"/>
+
+    <!-- Vehicle being followed -->
+    <vehicle id="lead"
+             type="lead"
+             route="r_forward"
+             depart="0"
+             departLane="1"
+             departPos="100"
+             departSpeed="10"/>
+
+    <!-- Ego vehicle -->
+    <vehicle id="ego"
+             type="ego"
+             route="r_forward"
+             depart="0"
+             departLane="1"
+             departPos="50"
+             departSpeed="10"/>
+
+</routes>

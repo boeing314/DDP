@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<routes>
+    <vType id="bike" length="1.8" width="0.6" guiShape="motorcycle" color="0,1,0" accel="3.0" decel="7.0" maxSpeed="35.0" sigma="0.65" minGap="0.383637" speedDev="0.45" speedFactor="1.1" lcModel="SL2015" lcSublane="8" lcPushy="0.85" lcAssertive="0.8" lcImpatience="0.95" latAlignment="nice" lcStrategic="0" lcCooperative="0.1" lcSpeedGain="2.0" lcKeepRight="0" />
+    <vType id="auto" length="2.6" width="1.4" guiShape="passenger" color="1,0.6,0" accel="2.2" decel="5.0" maxSpeed="26.0" sigma="0.334265" minGap="0.6" speedDev="0.35" speedFactor="1.05" lcModel="SL2015" lcSublane="8" lcPushy="0.85" lcAssertive="0.207888" lcImpatience="0.800325" latAlignment="nice" lcStrategic="0" lcCooperative="0.1" lcSpeedGain="2.0" lcKeepRight="0" />
+    <vType id="car" length="5.0" width="2.0" guiShape="passenger" color="1,1,0" accel="2.495427" decel="4.5" maxSpeed="34.0" sigma="0.45" minGap="0.3933065" speedDev="0.4" speedFactor="1.0" lcModel="SL2015" lcSublane="8" lcPushy="0.55" lcAssertive="0.35" lcImpatience="0.65" latAlignment="nice" lcStrategic="0" lcCooperative="0.15" lcSpeedGain="1.8" lcKeepRight="0" />
+    <vType id="bus" length="12.0" width="2.5" guiShape="bus" color="1,0,0" accel="1.2" decel="4.0" maxSpeed="24.0" sigma="0.423239" minGap="1.0" speedDev="0.281946" speedFactor="0.9" lcModel="SL2015" lcSublane="8" lcPushy="0.950682" lcAssertive="0.18" lcImpatience="0.300214" latAlignment="nice" lcStrategic="0" lcCooperative="0.2" lcSpeedGain="1.2" lcKeepRight="0" />
+    <vType id="truck" length="12.0" width="2.5" guiShape="truck" color="0,0,1" accel="1.0" decel="4.0" maxSpeed="22.0" sigma="0.5" minGap="1.2" speedDev="0.25" speedFactor="0.85" lcModel="SL2015" lcSublane="8" lcPushy="0.85" lcAssertive="0.12" lcImpatience="0.35" latAlignment="nice" lcStrategic="0" lcCooperative="0.2" lcSpeedGain="1.2" lcKeepRight="0" />
+    <vType id="egoType" length="4.583" width="1.748" guiShape="passenger" color="1,0,1" accel="3.0" decel="6.0" maxSpeed="30.0" sigma="0.0" minGap="0.5" speedDev="0.0" speedFactor="1.0" lcModel="SL2015" lcSublane="8" lcPushy="0.0" lcAssertive="0.0" lcImpatience="0.0" latAlignment="nice" lcStrategic="0" lcCooperative="0.0" lcSpeedGain="0.0" lcKeepRight="0" />
+    <route id="r_forward" edges="e0" />
+    <flow id="fwd_bike" type="bike" route="r_forward" begin="0.0" end="3600.0" vehsPerHour="2160" departLane="random" departPos="15.0" departSpeed="random" />
+    <flow id="fwd_auto" type="auto" route="r_forward" begin="0.0" end="3600.0" vehsPerHour="1080" departLane="random" departPos="15.0" departSpeed="random" />
+    <flow id="fwd_car" type="car" route="r_forward" begin="0.0" end="3600.0" vehsPerHour="1260" departLane="random" departPos="15.0" departSpeed="random" />
+    <flow id="fwd_bus" type="bus" route="r_forward" begin="0.0" end="3600.0" vehsPerHour="144" departLane="random" departPos="15.0" departSpeed="random" />
+    <flow id="fwd_truck" type="truck" route="r_forward" begin="0.0" end="3600.0" vehsPerHour="216" departLane="random" departPos="15.0" departSpeed="random" />
+    <vehicle id="ego" type="egoType" route="r_forward" depart="20.0" departLane="2" departPos="1.0" departSpeed="0.0" />
+</routes>

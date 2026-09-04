@@ -1,0 +1,251 @@
+# Central configuration for the SUMO network and Pure-DIPF controller.
+# The SUMO XML files are generated from this file by generate_sumo.py.
+# dipf_controller.py also reads this file, so simulation/controller geometry
+# should not be duplicated between Python and XML.
+
+simulation:
+  net_name: straight3lane
+  road_length_m: 1000.0
+  lanes: 3
+  lane_width_m: 3.5
+  edge_speed_mps: 20.0
+  begin: 0.0
+  end: 3600.0
+  step_length: 0.1
+  seed: 42
+
+ego:
+  id: ego
+  type_id: egoType
+  depart_time: 20.0
+  start_x: 1.0
+  start_lane: 2
+  start_speed_mps: 0.0
+  goal_x_offset_from_end_m: 15.0
+  goal_lane_index: 0
+  goal_tolerance_x: 1.5
+  goal_tolerance_y: 1.2
+  success_any_lane: true
+  length_m: 4.583
+  width_m: 1.748
+  max_speed_mps: 30.0
+  max_accel_mps2: 3.2
+  max_lateral_accel_mps2: 3.0
+  max_lateral_speed_mps: 3.0
+  collision_radius_m: 0.25
+
+dipf:
+  lambda_obs: 244.96347872189534
+  alpha: 1.6422052478480245
+  tau_x_base: 4.721871478710501
+  tau_y_base: 1.8648315932156687
+
+  sx: 1.0
+  sy: 1.0
+  delta_lane: 1.0
+
+  w_dest: 1.0
+  w_obs: 1.0
+  w_lane: 1.0
+
+  w_front: 1.0
+  w_rear: 1.0
+  w_side: 1.0
+
+  dv_max_front: 10.0
+  dv_max_rear: 10.0
+  dv_max_lat: 5.0
+
+  obs_radius_ahead: 50.0
+  obs_radius_behind: 20.0
+  lateral_band: 8.0
+
+  grad_eps: 0.05
+  y_margin: 0.1
+
+stuck_detection:
+  speed_threshold_mps: 0.35
+  window_sec: 8.0
+  progress_threshold_m: 2.0
+
+movement:
+  move_match_threshold: 1000.0
+  move_keep_route: 2
+  x_min_safe: 0.5
+  x_max_margin_m: 0.5
+  lateral_resolution_m: 0.25
+  debug_interval_sec: 2.0
+
+vehicle_types:
+  bike:
+    length_m: 1.8
+    width_m: 0.6
+    gui_shape: motorcycle
+    color: "0,1,0"
+    accel_mps2: 3.0
+    decel_mps2: 7.0
+    max_speed_mps: 35.0
+    sigma: 0.65
+    min_gap_m: 0.383637
+    speed_dev: 0.45
+    speed_factor: 1.10
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.85
+    lc_assertive: 0.80
+    lc_impatience: 0.95
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.1
+    lc_speed_gain: 2.0
+    lc_keep_right: 0
+
+  auto:
+    length_m: 2.6
+    width_m: 1.4
+    gui_shape: passenger
+    color: "1,0.6,0"
+    accel_mps2: 2.2
+    decel_mps2: 5.0
+    max_speed_mps: 26.0
+    sigma: 0.334265
+    min_gap_m: 0.6
+    speed_dev: 0.35
+    speed_factor: 1.05
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.85
+    lc_assertive: 0.207888
+    lc_impatience: 0.800325
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.1
+    lc_speed_gain: 2.0
+    lc_keep_right: 0
+
+  car:
+    length_m: 5.0
+    width_m: 2.0
+    gui_shape: passenger
+    color: "1,1,0"
+    accel_mps2: 2.495427
+    decel_mps2: 4.5
+    max_speed_mps: 34.0
+    sigma: 0.45
+    min_gap_m: 0.3933065
+    speed_dev: 0.40
+    speed_factor: 1.00
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.55
+    lc_assertive: 0.35
+    lc_impatience: 0.65
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.15
+    lc_speed_gain: 1.8
+    lc_keep_right: 0
+
+  bus:
+    length_m: 12.0
+    width_m: 2.5
+    gui_shape: bus
+    color: "1,0,0"
+    accel_mps2: 1.2
+    decel_mps2: 4.0
+    max_speed_mps: 24.0
+    sigma: 0.423239
+    min_gap_m: 1.0
+    speed_dev: 0.281946
+    speed_factor: 0.90
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.950682
+    lc_assertive: 0.18
+    lc_impatience: 0.300214
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.2
+    lc_speed_gain: 1.2
+    lc_keep_right: 0
+
+  truck:
+    length_m: 12.0
+    width_m: 2.5
+    gui_shape: truck
+    color: "0,0,1"
+    accel_mps2: 1.0
+    decel_mps2: 4.0
+    max_speed_mps: 22.0
+    sigma: 0.50
+    min_gap_m: 1.2
+    speed_dev: 0.25
+    speed_factor: 0.85
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.85
+    lc_assertive: 0.12
+    lc_impatience: 0.35
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.2
+    lc_speed_gain: 1.2
+    lc_keep_right: 0
+
+  egoType:
+    length_m: 4.583
+    width_m: 1.748
+    gui_shape: passenger
+    color: "1,0,1"
+    accel_mps2: 3.0
+    decel_mps2: 6.0
+    max_speed_mps: 30.0
+    sigma: 0.0
+    min_gap_m: 0.5
+    speed_dev: 0.0
+    speed_factor: 1.0
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.0
+    lc_assertive: 0.0
+    lc_impatience: 0.0
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.0
+    lc_speed_gain: 0.0
+    lc_keep_right: 0
+
+flows:
+  bike:
+    vehs_per_hour: 2160
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: random
+  auto:
+    vehs_per_hour: 1080
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: random
+  car:
+    vehs_per_hour: 1260
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: random
+  bus:
+    vehs_per_hour: 144
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: random
+  truck:
+    vehs_per_hour: 216
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: random
+
+obstacle_effective_dimensions:
+  bike: {width_m: 0.8, length_m: 2.0}
+  auto: {width_m: 1.6, length_m: 3.0}
+  car: {width_m: 2.1, length_m: 5.0}
+  bus: {width_m: 2.7, length_m: 12.0}
+  truck: {width_m: 2.7, length_m: 12.0}
+  default: {width_m: 2.1, length_m: 5.0}
