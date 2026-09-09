@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+    <vType id="bike"
+       carFollowModel="Krauss"
+       laneChangeModel="SL2015"
+       accel="6"
+       decel="10"
+       sigma="0.5"
+       length="1.8"
+       width="0.6"
+       minGap="0.5"
+       maxSpeed="22.22"
+       speedDev="0.1"
+       lcSublane="1"
+       lcPushy="0"
+       lcAssertive="0.5"
+       lcImpatience="0.2"
+       latAlignment="arbitrary"/>
+
+    <vType id="auto"
+       carFollowModel="Krauss"
+       laneChangeModel="SL2015"
+       accel="1.5"
+       decel="2"
+       sigma="0.4"
+       length="2.6"
+       width="1.4"
+       minGap="1.0"
+       maxSpeed="13.89"
+       speedDev="0.1"
+       lcSublane="1"
+       lcPushy="0.2"
+       lcAssertive="0.5"
+       lcImpatience="0.4"
+       latAlignment="arbitrary"/>
+
+    <vType id="car"
+       carFollowModel="Krauss"
+       laneChangeModel="SL2015"
+       accel="2.2"
+       decel="4.5"
+       sigma="0.5"
+       length="5"
+       width="2"
+       minGap="1.0"
+       maxSpeed="33.33"
+       speedDev="0.1"
+       lcSublane="1"
+       lcPushy="0.1"
+       lcAssertive="0.5"
+       lcImpatience="0.2"
+       latAlignment="arbitrary"/>
+
+    <vType id="bus"
+       carFollowModel="Krauss"
+       laneChangeModel="SL2015"
+       accel="1.2"
+       decel="4"
+       sigma="0.4"
+       length="12"
+       width="2.5"
+       minGap="2.0"
+       maxSpeed="20"
+       speedDev="0.5"
+       lcSublane="1"
+       lcPushy="0.2"
+       lcAssertive="0.5"
+       lcImpatience="0.2"
+       latAlignment="arbitrary"/>
+
+    <route id="r0" edges="e0"/>
+
+    <!-- The six directional demands from ROUTES2.2.9 are combined because
+         the new 3-lane road has one origin, one destination and one edge. -->
+
+    <flow id="bike_flow" type="bike" route="r0"
+          begin="0" end="3600" vehsPerHour="8669"
+          departPos="random" departLane="random" departSpeed="max"/>
+
+    <flow id="auto_flow" type="auto" route="r0"
+          begin="0" end="3600" vehsPerHour="1385"
+          departPos="random" departLane="random" departSpeed="max"/>
+
+    <flow id="car_flow" type="car" route="r0"
+          begin="0" end="3600" vehsPerHour="4119"
+          departPos="random" departLane="random" departSpeed="max"/>
+
+    <flow id="bus_flow" type="bus" route="r0"
+          begin="0" end="3600" vehsPerHour="407"
+          departPos="random" departLane="random" departSpeed="max"/>
+</routes>
