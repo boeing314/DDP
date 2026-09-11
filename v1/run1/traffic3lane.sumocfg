@@ -12,6 +12,8 @@
     <processing>
         <time-to-teleport value="-1"/>
         <lateral-resolution value="0.25"/>
+        <collision.action value="warn"/>
+        <collision.mingap-factor value="0"/>
     </processing>
     <output>
         <collision-output value="collisions.xml"/>
