@@ -16,7 +16,7 @@ xo, yo = 0.0, 30.0       # obstacle vehicle centre position
 # Selected relative velocity for the single plot (kmph).
 PLOT_DVX, PLOT_DVY = 3,3
 
-lam = 10              # scaling factor (lambda), Eq. 1
+lam = 30            # scaling factor (lambda), Eq. 1
 dv_max = 10.0             # normalising max relative velocity, Eq. 2
 tau_x, tau_y = 1,3
 alpha = 1           # velocity-skew sensitivity, Eq. 6
@@ -58,14 +58,14 @@ def kprime(dx, dy, dvx, dvy):
         # return tau0
         return tau0 * ((1 + alpha * abs(dvel)) + (alpha * abs(dvel) -1) * np.tanh(-delta * dvel)) / 2
 
-    tx = tau_x
-    ty = tau_y
+    tx = tau(dx, dvx, tau_x)
+    ty = tau(dy, dvy, tau_y)
 
     eps = 1e-6
     tx = np.where(np.abs(tx) < eps, eps, tx)
     ty = np.where(np.abs(ty) < eps, eps, ty)
 
-    dist = (np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2))/(((1 + alpha * abs(np.hypot(dvx, dvy))) + (alpha * abs(np.hypot(dvx, dvy)) -1) * np.tanh(-(dvx*dx+dvy*dy))))
+    dist = np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2)
 
     region13 = np.abs(dy) <= (l * np.abs(dx)) / w   # front/behind regions (1 & 3)
 
@@ -340,7 +340,92 @@ def plot_force_quiver(dvx=PLOT_DVX, dvy=PLOT_DVY, fname="force_quiver.png",
     return fig, ax
 
 
+# ============================================================
+# 2x3 grid — one force-field panel per tau_y/tau_x ratio, with tau_x, tau_y
+# rescaled for each ratio so that tau_x**2 + tau_y**2 == 1 (unit circle)
+# ============================================================
+def plot_force_quiver_grid(ratios=(0.25, 0.5, 1, 1.5, 3, 6),
+                            dvx=PLOT_DVX, dvy=PLOT_DVY,
+                            clip_min=FORCE_CLIP_MIN, clip_max=FORCE_CLIP_MAX,
+                            arrow_color="cyan", arrow_len=0.6,
+                            alpha_min=0.15, alpha_max=1.0,
+                            n_grid=250):
+    """
+    2x3 grid of force fields F=-grad(U), one subplot per tau_y/tau_x ratio.
+    For each ratio r, (tau_x, tau_y) is rescaled to lie on the unit circle:
+        tau_x = 1/sqrt(1+r**2),  tau_y = r/sqrt(1+r**2)
+    so that tau_x**2 + tau_y**2 == 1 while tau_y/tau_x == r. Restores the
+    original tau_x/tau_y globals on exit.
+    """
+    global tau_x, tau_y
+    assert len(ratios) == 6, "need exactly 6 ratios for a 2x3 grid"
+
+    x = np.linspace(-6, 6, n_grid)
+    y = np.linspace(20, 40, n_grid)
+    X, Y = np.meshgrid(x, y)
+
+    Xq = X[::QUIVER_STRIDE, ::QUIVER_STRIDE]
+    Yq = Y[::QUIVER_STRIDE, ::QUIVER_STRIDE]
+
+    orig_tau_x, orig_tau_y = tau_x, tau_y
+
+    fig, axes = plt.subplots(2, 3, figsize=(13, 8.5), sharex=True, sharey=True)
+
+    try:
+        mesh = None
+        for ratio, ax in zip(ratios, axes.ravel()):
+            norm = np.hypot(1.0, ratio)
+            tau_x = 1.0 / norm
+            tau_y = ratio / norm
+
+            dU_dX, dU_dY = gradient_field(X, Y, dvx, dvy)
+            mag_full = np.hypot(dU_dX, dU_dY)
+
+            mesh = ax.pcolormesh(X, Y, np.clip(mag_full, clip_min, clip_max),
+                                  cmap="inferno", norm=LogNorm(vmin=clip_min, vmax=clip_max),
+                                  shading="gouraud", zorder=0)
+
+            dU_dXq, dU_dYq = gradient_field(Xq, Yq, dvx, dvy)
+            Fxq, Fyq = -dU_dXq, -dU_dYq  # force = -grad(U)
+
+            magq = np.hypot(Fxq, Fyq)
+            eps = 1e-12
+            uxq = Fxq / (magq + eps)
+            uyq = Fyq / (magq + eps)
+
+            mag_norm = np.log(np.clip(magq, clip_min, clip_max) / clip_min) / np.log(clip_max / clip_min)
+            alphas = alpha_min + mag_norm * (alpha_max - alpha_min)
+
+            colors = np.tile(mcolors.to_rgba(arrow_color), (alphas.size, 1))
+            colors[:, 3] = alphas.ravel()
+
+            ax.quiver(Xq, Yq, uxq * arrow_len, uyq * arrow_len, color=colors,
+                      angles="xy", scale_units="xy", scale=1, pivot="mid",
+                      width=0.006, headwidth=3, headlength=4, zorder=3)
+
+            draw_scene(ax)
+            ax.set_title(f"$\\tau_y/\\tau_x$={ratio:g}\n($\\tau_x$={tau_x:.3f}, $\\tau_y$={tau_y:.3f})",
+                         fontsize=10)
+            ax.set_aspect("equal", adjustable="box")
+    finally:
+        tau_x, tau_y = orig_tau_x, orig_tau_y
+
+    for ax in axes[-1, :]:
+        ax.set_xlabel("X")
+    for ax in axes[:, 0]:
+        ax.set_ylabel("Y")
+
+    fig.suptitle(f"Force field $F=-\\nabla U$ vs. $\\tau_y/\\tau_x$ ratio, "
+                 f"$\\tau_x^2+\\tau_y^2$=1 "
+                 f"($\\Delta v_x$={dvx} kmph, $\\Delta v_y$={dvy} kmph)")
+    fig.colorbar(mesh, ax=axes, shrink=0.8, pad=0.02, label="|F| (log)")
+
+    plt.show(block=False)
+    return fig, axes
+
+
 if __name__ == "__main__":
     # plot_scenarios()
-    plot_force_quiver()
+    # plot_force_quiver()
+    plot_force_quiver_grid()
     plt.show()
