@@ -16,3 +16,8 @@ __pycache__/
 *.summary.xml
 *.fcd.xml
 *.emission.xml
+
+# Data files
+*.csv
+*.npz
+*.json
