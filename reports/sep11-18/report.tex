@@ -1,0 +1,89 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{skip=4pt}
+
+\title{Analysis of the Obstacle Potential Function}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Potential Function}
+
+The obstacle potential is defined as
+
+\begin{equation}
+    U_{obst} = \frac{\lambda (\Delta v / \Delta v_{max})}
+    {\left(1 - \dfrac{w}{\Delta x}\right)
+    \sqrt{\left(\dfrac{\Delta x}{\tau(\Delta x, \Delta v_x)}\right)^2
+    + \left(\dfrac{\Delta y}{\tau(\Delta y, \Delta v_y)}\right)^2}}
+    \label{eq:potential}
+\end{equation}
+
+where the direction-dependent time constants are given by
+
+\begin{align}
+    \tau(\Delta x, \Delta v_x) &= \frac{(1 + \alpha \Delta v_x) + (\alpha \Delta v_x - 1)\tanh(-\Delta x \Delta v_x)}{2}\,\tau_x \\
+    \tau(\Delta y, \Delta v_y) &= \frac{(1 + \alpha \Delta v_y) + (\alpha \Delta v_y - 1)\tanh(-\Delta y \Delta v_y)}{2}\,\tau_y
+\end{align}
+
+\noindent
+Here $\Delta x, \Delta y$ are the relative position offsets to the obstacle vehicle, $\Delta v_x, \Delta v_y$ the relative velocities, $w$ the obstacle width, and $\lambda, \tau_x, \tau_y, \alpha, \Delta v_{max}$ are model parameters.
+
+\subsection{Force Field}
+
+The force field $\mathbf{F} = -\nabla U_{obst}$ resulting from Equation~\ref{eq:potential} is shown below, decomposed into its $x$- and $y$-components and as the combined field.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[height=4.2cm]{base_x.png}
+        \caption{$F_x$}
+    \end{subfigure}
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[height=4.2cm]{base_y.png}
+        \caption{$F_y$}
+    \end{subfigure}
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[height=4.2cm]{base_xy.png}
+        \caption{Combined $\mathbf{F}$}
+    \end{subfigure}
+    \caption{Force field of the potential in Equation~\ref{eq:potential}.}
+    \label{fig:force_field}
+\end{figure}
+
+\section{Force at Fixed Points vs. Relative Velocity}
+
+To examine the velocity dependence of the force in more detail, we fix the position and sweep the relative velocity, plotting the resulting force magnitude for several directions of $(\Delta v_x, \Delta v_y)$. We consider the point $(x, y) = (3, 30)$, i.e.\ ahead of and to the side of the obstacle, and the point $(x, y) = (-3, 30)$, on the opposite side.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{base_vel.png}
+    \caption{Force magnitude vs.\ relative velocity at $(x, y) = (3, 30)$ and $(x, y) = (-3, 30)$.}
+    \label{fig:base_vel}
+\end{figure}
+
+\section{Removing the $\Delta v / \Delta v_{max}$ Term}
+
+From Figure~\ref{fig:base_vel}, we observe that when the vehicle is receding, an increase in the relative velocity causes the force to increase as well. This is an undesirable effect, since a receding vehicle should not produce a growing repulsive force.
+
+To avoid this behaviour, we drop the $\Delta v / \Delta v_{max}$ term from the original potential function in Equation~\ref{eq:potential}. Repeating the same two experiments with this modified potential gives the plot below.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{base_vel_f.png}
+    \caption{Force magnitude vs.\ relative velocity at $(x, y) = (3, 30)$ and $(x, y) = (-3, 30)$, with the $\Delta v / \Delta v_{max}$ term removed.}
+    \label{fig:base_vel_f}
+\end{figure}
+
+\end{document}

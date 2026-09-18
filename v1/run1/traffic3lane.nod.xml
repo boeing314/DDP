@@ -1,5 +1,138 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<nodes>
-    <node id="n0" x="0" y="0" type="priority"/>
-    <node id="n1" x="1000" y="0" type="priority"/>
-</nodes>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+    <!-- =========================================================
+         VEHICLE TYPES
+         Base: ROUTES2_2_9 vType definitions
+         Calibrated values applied per latest calibration table
+         ========================================================= -->
+
+    <!-- 2W - Bike -->
+    <vType id="bike"
+           carFollowModel="Krauss"
+           laneChangeModel="SL2015"
+           accel="6"
+           decel="10"
+           sigma="0.5"
+           length="1.8"
+           width="0.6"
+           minGap="0.383637"
+           maxSpeed="22.22"
+           speedDev="0.1"
+           lcSublane="1"
+           lcPushy="0"
+           lcAssertive="0"
+           lcImpatience="0"
+           latAlignment="nice"/>
+
+
+    <!-- 3W - Auto -->
+    <vType id="auto"
+           carFollowModel="Krauss"
+           laneChangeModel="SL2015"
+           accel="1.5"
+           decel="2"
+           sigma="0.334265"
+           length="2.6"
+           width="1.4"
+           minGap="2.5"
+           maxSpeed="13.89"
+           speedDev="0.1"
+           lcSublane="1"
+           lcPushy="0"
+           lcAssertive="0.207888"
+           lcImpatience="0.800325"
+           latAlignment="nice"/>
+
+
+    <!-- 4W - Car -->
+    <vType id="car"
+           carFollowModel="Krauss"
+           laneChangeModel="SL2015"
+           accel="2.495427"
+           decel="4.5"
+           sigma="0.5"
+           length="5"
+           width="2"
+           minGap="0.3933065"
+           maxSpeed="33.33"
+           speedDev="0.1"
+           lcSublane="1"
+           lcPushy="0"
+           lcAssertive="0"
+           lcImpatience="0"
+           latAlignment="nice"/>
+
+
+    <!-- HMV - Bus -->
+    <vType id="bus"
+           carFollowModel="Krauss"
+           laneChangeModel="SL2015"
+           accel="1.2"
+           decel="4"
+           sigma="0.423239"
+           length="12"
+           width="2.5"
+           minGap="2.5"
+           maxSpeed="27.78"
+           speedDev="0.281946"
+           lcSublane="1"
+           lcPushy="0.950682"
+           lcAssertive="0"
+           lcImpatience="0.300214"
+           latAlignment="nice"/>
+
+
+    <!-- =========================================================
+         ROUTE
+         ========================================================= -->
+
+    <route id="r_forward" edges="e0"/>
+
+
+    <!-- =========================================================
+         TRAFFIC FLOWS
+         ========================================================= -->
+
+    <flow id="fwd_bike"
+          type="bike"
+          route="r_forward"
+          begin="0"
+          end="3600"
+          vehsPerHour="2160"
+          departLane="random"
+          departPos="15.0"
+          departSpeed="random"/>
+
+    <flow id="fwd_auto"
+          type="auto"
+          route="r_forward"
+          begin="0"
+          end="3600"
+          vehsPerHour="1080"
+          departLane="random"
+          departPos="15.0"
+          departSpeed="random"/>
+
+    <flow id="fwd_car"
+          type="car"
+          route="r_forward"
+          begin="0"
+          end="3600"
+          vehsPerHour="1260"
+          departLane="random"
+          departPos="15.0"
+          departSpeed="random"/>
+
+    <flow id="fwd_bus"
+          type="bus"
+          route="r_forward"
+          begin="0"
+          end="3600"
+          vehsPerHour="144"
+          departLane="random"
+          departPos="15.0"
+          departSpeed="random"/>
+
+</routes>

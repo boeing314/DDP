@@ -9,7 +9,13 @@
         <end value="3600.0" />
         <step-length value="0.1" />
     </time>
+    <processing>
+        <time-to-teleport value="-1" />
+        <lateral-resolution value="0.25" />
+        <collision.action value="warn" />
+        <collision.mingap-factor value="0" />
+    </processing>
     <random_number>
-        <seed value="42" />
+        <seed value="122" />
     </random_number>
 </configuration>

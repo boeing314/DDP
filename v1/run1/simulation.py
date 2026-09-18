@@ -14,7 +14,7 @@ CFG = BASE_DIR / "traffic3lane.sumocfg"
 def find_sumo_gui():
 
     # Check PATH
-    exe = shutil.which("sumo-gui")
+    exe = shutil.which("sumo")
 
     if exe:
         return exe

@@ -6,8 +6,8 @@
     </input>
     <time>
         <begin value="0"/>
-        <end value="3600"/>
-        <step-length value="0.1"/>
+        <end value="1800"/>
+        <step-length value="0.5"/>
     </time>
     <processing>
         <time-to-teleport value="-1"/>

@@ -10,12 +10,12 @@ w, l = 1.75, 4.5
 host_w, host_l = 1.75, 4.5  
 xo, yo = 0.0, 30.0       
 
-PLOT_DVX, PLOT_DVY = 0,3
+PLOT_DVX, PLOT_DVY = 0,2
 
 lam = 10            
 dv_max = 10.0            
-tau_x, tau_y = 1.721871478710501, 4.8648315932156687
-alpha = 0.25           
+tau_x, tau_y = 1,3
+alpha = 1          
 
 U_CAP = 100.0               
 N_LEVELS = 300            
