@@ -1,0 +1,300 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{Why an Inverse-Elliptical Potential Produces a\\
+       Force-Magnitude Dip Along its Major Axis}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+For the artificial potential field $U=1/\rho$ built on an anisotropic
+(elliptical) pseudo-distance $\rho$ with elongation ratio $q$, the force
+magnitude $|\nabla U|$ has a strict local \emph{minimum} on the major axis
+whenever $q>\sqrt{3}$. We derive the exact threshold, the location of the
+off-axis ridge, and the depth of the dip in closed form, and we give the
+geometric reason for the constant $\sqrt{3}$. This explains the narrow
+low-force channel observed directly ahead of an obstacle in the DIPF force
+plots, and shows that the feature is a necessary consequence of elongating
+the field rather than a numerical artefact.
+\end{abstract}
+
+\section{Setup}
+
+Place the obstacle at the origin and define the \emph{elliptical radius}
+\begin{equation}
+  \rho(x,y)\;=\;\sqrt{\,x^{2}+\frac{y^{2}}{q^{2}}\,},
+  \qquad q>0 ,
+  \label{eq:rho}
+\end{equation}
+where $q$ is the elongation of the field along $y$. In the implementation
+$q=t_{y}/t_{x}$, the ratio of the two velocity-inflated time constants.
+The potential is the inverse of this pseudo-distance,
+\begin{equation}
+  U(x,y)\;=\;\frac{1}{\rho(x,y)} .
+  \label{eq:U}
+\end{equation}
+The level sets $\{U=\text{const}\}$ are concentric ellipses with semi-axis
+ratio $q:1$, the major axis lying along $y$. The force is $F=-\nabla U$, and
+the quantity plotted as the background colour field is $|F|=|\nabla U|$.
+
+Differentiating \eqref{eq:U},
+\begin{equation}
+  \partial_{x}U=-\,x\,\rho^{-3},
+  \qquad
+  \partial_{y}U=-\,\frac{y}{q^{2}}\,\rho^{-3},
+  \label{eq:partials}
+\end{equation}
+so that
+\begin{equation}
+  |\nabla U|^{2}
+  \;=\;\frac{x^{2}+y^{2}/q^{4}}{\rho^{6}}
+  \;=\;\frac{x^{2}+y^{2}/q^{4}}{\bigl(x^{2}+y^{2}/q^{2}\bigr)^{3}} .
+  \label{eq:gradsq}
+\end{equation}
+
+\section{The dip criterion}
+
+Fix a height $y=s>0$ and scan horizontally. Introduce the \emph{core
+half-width} at that height,
+\begin{equation}
+  a\;=\;\frac{s}{q},
+\end{equation}
+which is the semi-minor axis of the equipotential ellipse passing through
+$(0,s)$. Substituting $y=s$ into \eqref{eq:gradsq} and changing variables to
+$u=x^{2}\ge 0$ gives
+\begin{equation}
+  g(u)\;:=\;\bigl|\nabla U\bigr|^{2}\Big|_{y=s}
+  \;=\;\frac{u+a^{2}/q^{2}}{(u+a^{2})^{3}} .
+  \label{eq:g}
+\end{equation}
+Because $|\nabla U|^{2}$ depends on $x$ only through $u=x^{2}$, it is an even
+function of $x$ and its $x$-derivative vanishes at $x=0$ automatically. The
+substantive question is therefore not whether $x=0$ is a critical point, but
+whether it is a minimum or a maximum. That is decided by the sign of $g'$.
+
+\begin{theorem}[Dip criterion]
+\label{thm:main}
+Let $g$ be as in \eqref{eq:g}. Then
+\begin{equation}
+  g'(u)\;=\;\frac{a^{2}\!\left(1-\dfrac{3}{q^{2}}\right)-2u}
+                 {(u+a^{2})^{4}} ,
+  \qquad u\ge 0 .
+  \label{eq:gprime}
+\end{equation}
+Consequently:
+\begin{enumerate}
+  \item If $q\le\sqrt{3}$, then $g'(u)\le 0$ for all $u\ge0$, so $|\nabla U|$
+        is non-increasing in $|x|$ and the major axis carries the
+        \emph{largest} force on the scan line. There is no dip.
+  \item If $q>\sqrt{3}$, then $g'(0)>0$, so $x=0$ is a strict local
+        \emph{minimum} of $|\nabla U|$, and the unique maximum on the scan
+        line lies at
+        \begin{equation}
+          x^{*}\;=\;\frac{a}{\sqrt{2}}\sqrt{1-\frac{3}{q^{2}}}
+          \;=\;\frac{s}{q\sqrt{2}}\sqrt{1-\frac{3}{q^{2}}}
+          \;\xrightarrow[\;q\to\infty\;]{}\;\frac{s}{q\sqrt{2}} .
+          \label{eq:xstar}
+        \end{equation}
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+Write $g(u)=N(u)/D(u)$ with $N=u+a^{2}/q^{2}$ and $D=(u+a^{2})^{3}$. Then
+$N'=1$ and $D'=3(u+a^{2})^{2}$, so by the quotient rule
+\begin{align}
+  g'(u)
+  &=\frac{(u+a^{2})^{3}-\bigl(u+a^{2}/q^{2}\bigr)\cdot 3(u+a^{2})^{2}}
+         {(u+a^{2})^{6}} \notag\\[2pt]
+  &=\frac{(u+a^{2})-3\bigl(u+a^{2}/q^{2}\bigr)}{(u+a^{2})^{4}}
+   \;=\;\frac{a^{2}\!\left(1-\dfrac{3}{q^{2}}\right)-2u}{(u+a^{2})^{4}} ,
+\end{align}
+where the second line cancels one factor of $(u+a^{2})^{2}$. This is
+\eqref{eq:gprime}.
+
+Since $a>0$, the denominator $(u+a^{2})^{4}$ is strictly positive on
+$u\ge 0$. Hence $\operatorname{sign} g'(u)=\operatorname{sign}\bigl[
+a^{2}(1-3/q^{2})-2u\bigr]$, an affine and strictly decreasing function of $u$.
+
+If $q^{2}\le 3$ the constant term $a^{2}(1-3/q^{2})$ is non-positive, so the
+numerator is $\le 0$ throughout $u\ge0$; thus $g$ is non-increasing, and so is
+$|\nabla U|=\sqrt{g}$ (the square root is monotone). Since $u=x^{2}$ increases
+with $|x|$, claim~1 follows.
+
+If $q^{2}>3$ the numerator is positive at $u=0$ and decreases affinely,
+vanishing exactly once at
+\begin{equation}
+  u^{*}=\tfrac{1}{2}a^{2}\!\left(1-\tfrac{3}{q^{2}}\right)>0 ,
+  \label{eq:ustar}
+\end{equation}
+after which it is negative. Hence $g$ strictly increases on $[0,u^{*}]$ and
+strictly decreases on $[u^{*},\infty)$: $u=0$ is a strict local minimum and
+$u^{*}$ is the unique global maximum. Taking $x^{*}=\sqrt{u^{*}}$ gives
+\eqref{eq:xstar}.
+\end{proof}
+
+\begin{remark}
+A circle ($q=1$) can never produce the dip, and any elongation beyond
+$q=\sqrt{3}\approx 1.732$ must. The feature is thus not an artefact of the
+particular potential used, but a property of elongation itself.
+\end{remark}
+
+\section{Depth of the dip}
+
+\begin{theorem}[Contrast ratio]
+\label{thm:contrast}
+For $q>\sqrt3$, the ratio of the ridge force to the on-axis force on any
+horizontal scan line is
+\begin{equation}
+  C\;:=\;\frac{|\nabla U|_{\max}}{|\nabla U|_{x=0}}
+  \;=\;\frac{2q^{3}}{3\sqrt{3}\,\bigl(q^{2}-1\bigr)}
+  \;\xrightarrow[\;q\to\infty\;]{}\;\frac{2q}{3\sqrt{3}}\;\approx\;0.385\,q .
+  \label{eq:contrast}
+\end{equation}
+In particular $C$ is independent of the height $s$.
+\end{theorem}
+
+\begin{proof}
+From \eqref{eq:g}, on the axis
+\begin{equation}
+  g(0)=\frac{a^{2}/q^{2}}{a^{6}}=\frac{1}{q^{2}a^{4}} .
+\end{equation}
+At the ridge, substitute $u^{*}$ from \eqref{eq:ustar}. The two brackets
+simplify because the $3/q^{2}$ terms combine:
+\begin{align}
+  u^{*}+\frac{a^{2}}{q^{2}}
+  &=\frac{a^{2}}{2}\left(1-\frac{3}{q^{2}}\right)+\frac{a^{2}}{q^{2}}
+   =\frac{a^{2}}{2}\left(1-\frac{1}{q^{2}}\right), \\[4pt]
+  u^{*}+a^{2}
+  &=a^{2}\left[1+\frac{1}{2}\left(1-\frac{3}{q^{2}}\right)\right]
+   =\frac{3a^{2}}{2}\left(1-\frac{1}{q^{2}}\right).
+\end{align}
+Writing $\beta=1-q^{-2}$,
+\begin{equation}
+  g(u^{*})
+  =\frac{\tfrac{1}{2}a^{2}\beta}{\bigl(\tfrac{3}{2}a^{2}\beta\bigr)^{3}}
+  =\frac{\tfrac{1}{2}a^{2}\beta}{\tfrac{27}{8}a^{6}\beta^{3}}
+  =\frac{4}{27\,a^{4}\beta^{2}} .
+\end{equation}
+Therefore
+\begin{equation}
+  C^{2}=\frac{g(u^{*})}{g(0)}
+  =\frac{4}{27\,a^{4}\beta^{2}}\cdot q^{2}a^{4}
+  =\frac{4q^{2}}{27\,\beta^{2}} ,
+\end{equation}
+and taking the positive square root with $\beta=(q^{2}-1)/q^{2}$ gives
+\begin{equation}
+  C=\frac{2q}{3\sqrt3\,\beta}=\frac{2q^{3}}{3\sqrt3\,(q^{2}-1)} .
+\end{equation}
+Both $a$ and $s$ have cancelled, proving the height-independence.
+\end{proof}
+
+\begin{corollary}[Geometry of the channel]
+Since $C$ does not depend on $s$ while $x^{*}\propto s$ by \eqref{eq:xstar},
+the locus of ridge points is a pair of straight rays through the obstacle,
+\begin{equation}
+  x=\pm\,\kappa\,s,
+  \qquad
+  \kappa=\frac{1}{q}\sqrt{\frac{1}{2}\left(1-\frac{3}{q^{2}}\right)} ,
+\end{equation}
+enclosing a wedge of uniformly suppressed force. The dip therefore appears in
+a plot as a narrow channel of constant contrast opening away from the
+obstacle, i.e.\ the observed ``U'' shape, rather than as an isolated blob.
+\end{corollary}
+
+\section{Why the constant is \texorpdfstring{$\sqrt{3}$}{sqrt(3)}}
+
+The threshold has a direct geometric reading. Factor the gradient through the
+metric:
+\begin{equation}
+  |\nabla U|
+  =\bigl|U'(\rho)\bigr|\;\bigl|\nabla\rho\bigr|
+  =\underbrace{\rho^{-2}}_{\text{amplitude}}\;
+   \underbrace{\bigl|\nabla\rho\bigr|}_{\text{metric}},
+  \qquad
+  \bigl|\nabla\rho\bigr|=\frac{\sqrt{x^{2}+y^{2}/q^{4}}}{\rho} .
+\end{equation}
+Moving off-axis at fixed height, the two factors oppose one another:
+\begin{itemize}
+  \item $|\nabla\rho|$ \textbf{increases} from $1/q$ on the major axis to $1$
+        on the minor axis. Equipotentials are $q$ times more widely spaced at
+        the poles of the ellipse than at its flanks, so the force there is
+        $q$ times weaker. This is the elongation, and it favours an off-axis
+        ridge.
+  \item $\rho^{-2}$ \textbf{decreases}, since $\rho$ grows with $|x|$. This is
+        the inverse-distance decay, and it favours a monotone falloff.
+\end{itemize}
+The exponent $3$ appearing in \eqref{eq:gprime} is precisely the power
+$\rho^{-3}$ carried by the gradient of a $1/\rho$ potential, as seen in
+\eqref{eq:partials}. The dip survives only when the metric gain outpaces that
+decay, which requires $q^{2}>3$. A different radial power law shifts the
+threshold accordingly; an isotropic field has no metric gain at all
+($|\nabla\rho|\equiv1$) and so never exhibits the dip.
+
+\section{Numerical verification}
+
+Evaluating $|\nabla U|$ by central differences on \eqref{eq:U} at $s=8$ over a
+fine grid in $x$ reproduces both closed forms to four decimal places.
+
+\begin{center}
+\begin{tabular}{rcccc}
+\toprule
+$q$ & $x^{*}$ predicted & $x^{*}$ numerical & $C$ predicted & $C$ numerical\\
+\midrule
+$1.50$        & ---      & ---      & $1.0000$  & $1.0000$\\
+$\sqrt{3}$    & $0.0000$ & $0.0149$ & $1.0000$  & $1.0000$\\
+$2$           & $1.4142$ & $1.4142$ & $1.0264$  & $1.0264$\\
+$3$           & $1.5396$ & $1.5396$ & $1.2990$  & $1.2990$\\
+$6$           & $0.9027$ & $0.9027$ & $2.3754$  & $2.3754$\\
+$12$          & $0.4665$ & $0.4665$ & $4.6511$  & $4.6511$\\
+$30$          & $0.1882$ & $0.1883$ & $11.5598$ & $11.5598$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+At $q=\sqrt3$ the maximum is degenerate ($x^{*}=0$) and the numerical value
+merely reflects the grid resolution, consistent with $C=1$.
+
+\section{Application to the implemented field}
+
+The implemented potential carries an additional vehicle-dimension prefactor,
+\begin{equation}
+  U_{\text{impl}}(x,s)=\frac{\lambda}{\bigl(1-l/s\bigr)\,\rho(x,s)} ,
+  \label{eq:Uimpl}
+\end{equation}
+with $l$ the obstacle length and $s$ the longitudinal gap. Two consequences:
+
+\begin{itemize}
+  \item \textbf{The ridge location is unchanged.} The prefactor
+        $\bigl(1-l/s\bigr)^{-1}$ is constant in $x$ along a horizontal scan,
+        so it rescales the $x$-profile without shifting its stationary point.
+        For $q=12$ at $s=9.5$, \eqref{eq:xstar} predicts $x^{*}=0.554$ against
+        a measured $0.54$ in the implementation.
+  \item \textbf{The dip is shallower.} The factor does depend on $s$, so
+        $\partial_{y}$ acts on it and contributes an additional,
+        $x$-dependent term to $F_{y}$ that partially fills the on-axis
+        minimum. The measured contrast is $C\approx2.52$ against the
+        pure-elliptical value $4.6511$ --- qualitatively identical, roughly
+        half as deep.
+\end{itemize}
+
+Finally, note that the dip lives in $|\nabla U|$, not in $U$. The potential
+itself is maximal on the major axis and decreases monotonically outward, so
+its level sets remain nested convex ellipses; it is the level sets of the
+\emph{force magnitude} that become non-convex and pinched at the poles. In
+control terms the major axis is a ridge of $U$, hence an unstable
+equilibrium line: a host vehicle exactly on the centreline receives a
+near-zero lateral command, while a small lateral offset receives a large one.
+
+\end{document}

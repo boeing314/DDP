@@ -1,0 +1,387 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{Normalising the Force by $|\nabla\rho|$:\\
+       Why it Removes the Dip}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+An elongated (elliptical) potential field produces a spurious local minimum
+of $|F|$ along its major axis --- weakest force exactly where the obstacle
+lies most directly ahead. This note explains, first informally and then with
+proofs, why dividing the force by $|\nabla\rho|$ removes that minimum for
+every elongation while leaving the force direction exactly unchanged. The
+essential observation is that $|\nabla U|$ factors into a part that depends
+on $\rho$ alone and a part that depends on \emph{direction}, and that the
+entire defect lives in the second part. We also delimit the result: it is
+exact on horizontal scans of the implemented field, but the stronger
+statement that $|F|$ is constant on ellipses fails there, for reasons we make
+precise.
+\end{abstract}
+
+\section{The idea in words}
+\label{sec:intuition}
+
+\subsection{Force is contour spacing}
+
+The magnitude of a gradient is a rate: how much $U$ changes per metre
+travelled. Equivalently, it measures how tightly the equipotential contours
+are packed. Where contours crowd, the force is large; where they spread, it
+is small.
+
+Now elongate the field by a factor $q$ along $y$. The contours become
+ellipses stretched $q:1$. Crucially, \emph{the same potential drop is now
+spread over $q$ times more metres at the poles of the ellipse than at its
+flanks}. So the force at the poles is $q$ times weaker --- not because the
+situation there is any safer, but because of how the contours were drawn. The
+dip is a measurement artefact of this stretching.
+
+\subsection{$\rho$ is a risk coordinate, not a length}
+
+The cleanest way to see the artefact is to notice that $\rho$ is not a
+distance. It is a \emph{risk coordinate}: a bookkeeping variable in which
+one unit longitudinally is worth $t_y$ metres while one unit laterally is
+worth only $t_x$ metres. When we form $\nabla U$ we are implicitly applying
+the chain rule,
+\begin{equation}
+  \underbrace{\frac{\partial U}{\partial(\text{metres})}}_{\text{what }|\nabla U|\text{ measures}}
+  \;=\;
+  \underbrace{\frac{\partial U}{\partial\rho}}_{\text{what we want}}
+  \;\times\;
+  \underbrace{\frac{\partial\rho}{\partial(\text{metres})}}_{\text{exchange rate}} ,
+\end{equation}
+and the trouble is that the exchange rate is \emph{direction-dependent}: it
+is $1/t_y$ along the major axis and $1/t_x$ along the minor axis. The first
+factor is the honest quantity --- how fast risk changes per unit of risk ---
+and it can have no directional preference, because $U$ is a function of
+$\rho$ alone. The second factor is pure bookkeeping, and it is the sole
+source of the dip.
+
+Dividing by $|\nabla\rho|$ cancels the bookkeeping factor and returns
+$\partial U/\partial\rho$. That is the whole method.
+
+\subsection{The eikonal picture}
+
+There is a standard name for the property $\rho$ lacks. A genuine distance
+function satisfies the \emph{eikonal condition}
+\begin{equation}
+  \bigl|\nabla\phi\bigr| \;=\; 1 ,
+\end{equation}
+meaning one metre of travel buys exactly one unit of $\phi$, in every
+direction. Our $\rho$ violates this: its gradient norm ranges over
+$[1/t_y,\,1/t_x]$, a swing of exactly the elongation ratio $q$. In level-set
+methods a function that has drifted away from the eikonal condition is
+repaired by \emph{reinitialisation}; dividing by $|\nabla\rho|$ is the
+closed-form, one-step version of the same repair. Seen this way, the method
+is not a trick but the restoration of a property the field was implicitly
+assumed to have.
+
+\subsection{Why the direction survives}
+
+Finally, the reason this costs nothing in steering behaviour: $|\nabla\rho|$
+is a \emph{positive scalar}. Dividing a vector by a positive scalar changes
+its length and not its heading. So every arrow in the field keeps pointing
+exactly where it pointed before; only the colour map changes. This is what
+distinguishes the method from metric-weighted alternatives such as
+$-G^{-1}\nabla U$, which rotate the force toward the radial direction and
+destroy the lateral guidance.
+
+\begin{remark}[One-sentence summary]
+The dip is the gap between ``potential drop per metre'' and ``potential drop
+per unit of risk''; the normalisation measures the latter, which by
+construction cannot prefer a direction.
+\end{remark}
+
+\section{Setup and notation}
+
+Let the obstacle sit at $(x_{o},y_{o})$ and write the gaps
+$d_{x}=x_{o}-X$, $d_{y}=y_{o}-Y$ for a host at $(X,Y)$. With per-axis time
+constants $t_{x},t_{y}>0$ define the elliptical pseudo-distance
+\begin{equation}
+  \rho \;=\; \sqrt{\Bigl(\frac{d_{x}}{t_{x}}\Bigr)^{2}
+                 + \Bigl(\frac{d_{y}}{t_{y}}\Bigr)^{2}},
+  \qquad
+  q \;=\; \frac{t_{y}}{t_{x}}\ \ (\text{the elongation}).
+  \label{eq:rho}
+\end{equation}
+Throughout, $\nabla$ is taken with respect to the host position $(X,Y)$;
+since $d_{x},d_{y}$ are affine in $X,Y$ with unit slopes, signs cancel in
+every magnitude below. We consider potentials of the form $U=U(\rho)$ with
+$U'$ of one sign, and define the normalised force
+\begin{equation}
+  \boxed{\;F_{\mathrm{n}} \;=\; -\,\frac{\nabla U}{\bigl|\nabla\rho\bigr|}\;}
+  \label{eq:Fn}
+\end{equation}
+
+\section{The mathematics}
+
+\subsection{Localising the defect}
+
+\begin{lemma}[Factorisation]
+\label{lem:factor}
+If $U=U(\rho)$ then $\nabla U = U'(\rho)\,\nabla\rho$, and hence
+\begin{equation}
+  \bigl|\nabla U\bigr|
+  \;=\;
+  \underbrace{\bigl|U'(\rho)\bigr|}_{\text{depends on }\rho\text{ only}}
+  \cdot
+  \underbrace{\bigl|\nabla\rho\bigr|}_{\text{depends on direction}} .
+  \label{eq:factor}
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Immediate from the chain rule applied to the composition $U\circ\rho$.
+\end{proof}
+
+The two factors have sharply different characters, and the next two results
+make that precise. Lemma~\ref{lem:factor} is the formal content of
+Section~\ref{sec:intuition}: the first factor is the honest rate, the second
+is the exchange rate.
+
+\begin{lemma}[Range of the exchange rate]
+\label{lem:range}
+Away from the obstacle centre,
+\begin{equation}
+  \bigl|\nabla\rho\bigr|
+  =\frac{\sqrt{\bigl(d_{x}/t_{x}^{2}\bigr)^{2}+\bigl(d_{y}/t_{y}^{2}\bigr)^{2}}}{\rho},
+  \qquad
+  \bigl|\nabla\rho\bigr|\in
+  \Bigl[\tfrac{1}{\max(t_{x},t_{y})},\ \tfrac{1}{\min(t_{x},t_{y})}\Bigr],
+\end{equation}
+with the endpoints attained exactly on the two axes: $|\nabla\rho|=1/t_{y}$
+on the major axis $(d_{x}=0)$ and $|\nabla\rho|=1/t_{x}$ on the minor axis
+$(d_{y}=0)$. The ratio between the extremes is exactly $q$.
+\end{lemma}
+
+\begin{proof}
+Differentiating \eqref{eq:rho} gives
+$\partial\rho/\partial d_{x}=d_{x}/(t_{x}^{2}\rho)$ and likewise for
+$d_{y}$, which yields the stated formula. For the range, put
+$u=(d_{x}/t_{x})^{2}\ge0$ and $v=(d_{y}/t_{y})^{2}\ge0$, so that
+$\rho^{2}=u+v$ and
+$(d_{x}/t_{x}^{2})^{2}+(d_{y}/t_{y}^{2})^{2}=u/t_{x}^{2}+v/t_{y}^{2}$.
+Hence
+\begin{equation}
+  \bigl|\nabla\rho\bigr|^{2}
+  =\frac{u}{u+v}\cdot\frac{1}{t_{x}^{2}}
+  +\frac{v}{u+v}\cdot\frac{1}{t_{y}^{2}},
+\end{equation}
+a convex combination of $1/t_{x}^{2}$ and $1/t_{y}^{2}$ with non-negative
+weights summing to one. A convex combination lies between its extremes, and
+attains them precisely when a weight vanishes, i.e.\ when $v=0$ or $u=0$.
+Taking square roots gives the claim.
+\end{proof}
+
+\noindent
+Lemma~\ref{lem:range} quantifies the intuition exactly: the offending factor
+sweeps a range whose width \emph{is} the elongation $q$. For an isotropic
+field $t_{x}=t_{y}$ the range collapses to a point and there is nothing to
+correct.
+
+\subsection{What the normalisation achieves}
+
+\begin{theorem}[The normalised magnitude is direction-free]
+\label{thm:magnitude}
+For $U=U(\rho)$ and $F_{\mathrm{n}}$ as in \eqref{eq:Fn},
+\begin{equation}
+  \bigl|F_{\mathrm{n}}\bigr| \;=\; \bigl|U'(\rho)\bigr| ,
+\end{equation}
+a function of $\rho$ alone. Equivalently, $F_{\mathrm{n}}=-U'(\rho)\,\hat n$
+with $\hat n=\nabla\rho/|\nabla\rho|$ the outward unit normal to the ellipse
+through the point.
+\end{theorem}
+
+\begin{proof}
+By Lemma~\ref{lem:factor}, $|\nabla U|=|U'(\rho)|\,|\nabla\rho|$. Dividing by
+$|\nabla\rho|>0$ gives $|F_{\mathrm{n}}|=|U'(\rho)|$. The vector form follows
+from $\nabla U=U'(\rho)\nabla\rho$ on dividing by $|\nabla\rho|$.
+\end{proof}
+
+\begin{corollary}[The two families of level sets coincide]
+\label{cor:levelsets}
+Under the hypotheses of Theorem~\ref{thm:magnitude}, the level sets of
+$|F_{\mathrm{n}}|$ are exactly the level sets of $U$, namely the ellipses
+$\rho=\text{const}$.
+\end{corollary}
+
+\begin{proof}
+Both $|F_{\mathrm{n}}|=|U'(\rho)|$ and $U=U(\rho)$ are functions of $\rho$
+alone, so each is constant on $\{\rho=c\}$; as $|U'|$ is of one sign and
+$\rho$ ranges over an interval, the sets $\{\rho=c\}$ are precisely the level
+sets of each.
+\end{proof}
+
+Corollary~\ref{cor:levelsets} is the sharpest statement of why the method
+works. The dip was, by definition, a mismatch between the shape of the
+$|F|$ contours (pinched, non-convex, peanut-like) and the shape of the $U$
+contours (nested convex ellipses). The normalisation forces the two families
+to agree, and a family of nested ellipses has no pinch.
+
+\begin{theorem}[No dip, at any elongation]
+\label{thm:nodip}
+Fix a height $s>0$ and suppose $|U'|$ is strictly decreasing in $\rho$
+(as for $U=\lambda/\rho$). Then along the horizontal scan $y=s$ the magnitude
+$|F_{\mathrm{n}}|$ is strictly decreasing in $|x|$, attains its maximum at
+$x=0$, and has no interior critical point. This holds for every $q>0$, with
+no threshold.
+\end{theorem}
+
+\begin{proof}
+By Theorem~\ref{thm:magnitude}, $|F_{\mathrm{n}}|=|U'(\rho)|$. At fixed $s$,
+\begin{equation}
+  \rho(x,s)=\sqrt{\Bigl(\frac{x}{t_{x}}\Bigr)^{2}+\Bigl(\frac{s}{t_{y}}\Bigr)^{2}}
+\end{equation}
+is strictly increasing in $|x|$, since $\partial\rho/\partial x = x/(t_{x}^{2}\rho)>0$
+for $x>0$. The composition of the strictly decreasing map $\rho\mapsto|U'(\rho)|$
+with the strictly increasing map $|x|\mapsto\rho$ is strictly decreasing.
+A strictly monotone function on $[0,\infty)$ attains its maximum at the left
+endpoint and has no interior stationary point. No hypothesis on $q$ was used.
+\end{proof}
+
+\begin{corollary}[Direction is exactly preserved]
+\label{cor:direction}
+$F_{\mathrm{n}}$ is everywhere parallel to $-\nabla U$, with the same
+orientation.
+\end{corollary}
+
+\begin{proof}
+$F_{\mathrm{n}} = (-\nabla U)\big/|\nabla\rho|$ and $|\nabla\rho|>0$ away from
+the obstacle centre. Multiplication by a positive scalar preserves both the
+line spanned by a vector and its orientation.
+\end{proof}
+
+\begin{proposition}[Consistency: the isotropic case is a fixed point]
+\label{prop:isotropic}
+If $t_{x}=t_{y}=t$ then $|\nabla\rho|\equiv 1/t$, so $F_{\mathrm{n}}$ differs
+from $-\nabla U$ by the single global constant $t$; if moreover $t=1$ then
+$F_{\mathrm{n}}=-\nabla U$ identically.
+\end{proposition}
+
+\begin{proof}
+Set $t_{x}=t_{y}=t$ in Lemma~\ref{lem:range}: the interval degenerates to the
+point $1/t$.
+\end{proof}
+
+\noindent
+Proposition~\ref{prop:isotropic} is the sanity check that the method is a
+genuine generalisation: it does nothing precisely in the case that had
+nothing wrong with it, and its strength scales with the elongation that
+caused the problem.
+
+\section{Scope: the implemented field}
+\label{sec:scope}
+
+The implemented potential is \emph{not} of the form $U(\rho)$. It carries a
+vehicle-dimension prefactor,
+\begin{equation}
+  U_{\mathrm{impl}} \;=\; \frac{\lambda}{\bigl|k'\bigr|},
+  \qquad
+  k' \;=\; c(d_{x},d_{y})\,\rho,
+  \qquad
+  c=\begin{cases}
+      1-w/|d_{x}| & \text{region 1/3},\\
+      1-l/|d_{y}| & \text{region 2/4},
+    \end{cases}
+  \label{eq:impl}
+\end{equation}
+and $c$ is not a function of $\rho$. Two consequences, and it is worth being
+precise about which results survive.
+
+\begin{proposition}[Theorem~\ref{thm:nodip} is exact on horizontal scans]
+\label{prop:horizontal}
+Restrict \eqref{eq:impl} to a horizontal line $Y=\text{const}$ lying in
+region 2/4. Then $d_{y}$ is constant along that line, hence so is
+$c=1-l/|d_{y}|$, and $U_{\mathrm{impl}}=\bigl(\lambda/c\bigr)\rho^{-1}$ is a
+function of $\rho$ alone \emph{along that line}. Theorem~\ref{thm:nodip}
+therefore applies verbatim, and the contrast satisfies $C=1$ exactly.
+\end{proposition}
+
+\begin{proof}
+Along $Y=\text{const}$ we have $d_{y}=y_{o}-Y$ fixed, so $c$ is a constant
+$c_{0}$ and $U_{\mathrm{impl}}=(\lambda/c_{0})\rho^{-1}$, to which
+Theorem~\ref{thm:nodip} applies with $U'(\rho)=-(\lambda/c_{0})\rho^{-2}$,
+strictly decreasing in magnitude.
+\end{proof}
+
+\begin{remark}[Corollary~\ref{cor:levelsets} does \emph{not} survive]
+\label{rem:notlevelsets}
+Along an ellipse $\rho=\text{const}$ the gap $d_{y}$ varies, so $c$ varies and
+$|F_{\mathrm{n}}|$ is not constant there. Measured on the implemented field
+at $q=15$, the coefficient of variation of $|F_{\mathrm{n}}|$ along arcs of
+fixed $\rho$ is $52\%$ to $104\%$ --- reduced from $105\%$ to $162\%$ for the
+unnormalised force, but far from zero. The guarantee delivered in practice is
+thus Proposition~\ref{prop:horizontal} (no dip on any horizontal scan), not
+the stronger Corollary~\ref{cor:levelsets}.
+\end{remark}
+
+\section{Numerical verification}
+
+All figures below are measured on the implemented field at the current
+configuration $t_{x}=1$, $t_{y}=15$, i.e.\ $q=15$.
+
+\begin{center}
+\begin{tabular}{rccc}
+\toprule
+$Y$ & plain $C$ & ridge $x^{*}$ & normalised $C$\\
+\midrule
+$36.5$ & $1.926$ & $0.288$ & $\mathbf{1.000}$\\
+$37.5$ & $2.418$ & $0.340$ & $\mathbf{1.000}$\\
+$38.5$ & $2.804$ & $0.390$ & $\mathbf{1.000}$\\
+$39.5$ & $3.113$ & $0.438$ & $\mathbf{1.000}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Lemma~\ref{lem:range} predicts $|\nabla\rho|\in[1/t_{y},1/t_{x}]=[0.0667,1]$;
+sampled over the plotting window the measured range is $[0.0712,\,1.0000]$,
+the lower end approached as the grid nears the major axis. The analytic
+expression of Lemma~\ref{lem:range} agrees with a central-difference
+evaluation to $6.4\times10^{-10}$. Corollary~\ref{cor:direction} is confirmed
+to machine precision: the force angle at sample points above and below the
+obstacle is unchanged to $0.00\times10^{0}$ degrees.
+
+\section{The cost}
+
+$F_{\mathrm{n}}$ is not a gradient field. Writing
+$F_{\mathrm{n}}=-\Phi\,\nabla\rho$ with $\Phi=U'(\rho)/|\nabla\rho|$, such a
+field is conservative only if $\Phi$ is a function of $\rho$ alone; but by
+Lemma~\ref{lem:range} the factor $|\nabla\rho|$ varies along a single ellipse
+$\rho=\text{const}$ whenever $q>1$, so $\Phi$ is not, and
+$\nabla\times F_{\mathrm{n}}\neq0$. Consequently $U$ is no longer a Lyapunov
+function for the normalised force. The magnitude of the violation, and the
+comparison against alternative remedies, are treated in the companion note
+\emph{Remedies for the Force-Magnitude Dip in an Inverse-Elliptical Potential
+Field}.
+
+\section{Relation to existing work}
+
+The manoeuvre has two well-established relatives. In level-set methods, a
+function that has lost the eikonal property $|\nabla\phi|=1$ is restored by
+\emph{reinitialisation}, classically by evolving
+$\partial_{\tau}\phi+\operatorname{sgn}(\phi_{0})(|\nabla\phi|-1)=0$;
+\eqref{eq:Fn} is the closed-form one-step analogue. In potential-field
+control, the fully normalised gradient $-\nabla\gamma/\lVert\nabla\gamma\rVert$
+is used to decouple the commanded direction from a separately regulated
+magnitude, and incurs the same loss of conservativeness. Equation
+\eqref{eq:Fn} sits between the two: it removes only the metric factor
+$|\nabla\rho|$, retaining the physically meaningful variation $|U'(\rho)|$
+that a full normalisation would discard.
+
+\end{document}

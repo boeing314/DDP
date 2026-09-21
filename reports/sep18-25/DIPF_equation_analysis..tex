@@ -42,10 +42,12 @@
 \maketitle
 \vspace{-1.5em}
 
+\vspace{1em}
+
 \section{Potential Function}
 
 \begin{equation}
-    U_{obst} = \frac{\lambda (\Delta v / \Delta v_{max})}
+    U_{obst} = \frac{\lambda (|\Delta v| / \Delta v_{max})}
     {k(\Delta x, \Delta y, \Delta v_x, \Delta v_y)}
     \label{eq:potential}
 \end{equation}
@@ -61,8 +63,8 @@
 \end{equation}
 
 \begin{align}
-    \tau(\Delta x, \Delta v_x) &= \frac{(1 + \alpha \Delta v_x) + (\alpha \Delta v_x - 1)\tanh(-\Delta x \Delta v_x)}{2}\,\tau_x \\
-    \tau(\Delta y, \Delta v_y) &= \frac{(1 + \alpha \Delta v_y) + (\alpha \Delta v_y - 1)\tanh(-\Delta y \Delta v_y)}{2}\,\tau_y
+    \tau(\Delta x, \Delta v_x) &= \frac{(1 + \alpha |\Delta v_x|) + (\alpha |\Delta v_x| - 1)\tanh(-\Delta x \Delta v_x)}{2}\,\tau_x \\
+    \tau(\Delta y, \Delta v_y) &= \frac{(1 + \alpha |\Delta v_y|) + (\alpha |\Delta v_y| - 1)\tanh(-\Delta y \Delta v_y)}{2}\,\tau_y
 \end{align}
 
 \noindent
@@ -94,31 +96,43 @@ Here $\Delta x, \Delta y$ are the relative position wrt obstacle vehicle, $\Delt
 \end{figure}
 
 \subsection{Force Field}
-
+\label{sec:force-field}
+$$F=-\nabla U_{obst}$$
 \begin{figure}[H]
     \centering
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
         \includegraphics[width=\linewidth]{force_vx.png}
         \caption{Varying $\Delta v_x$}
+        \label{fig:force-field-a}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
         \includegraphics[width=\linewidth]{force_vy.png}
         \caption{Varying $\Delta v_y$}
+        \label{fig:force-field-b}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.32\textwidth}
         \centering
         \includegraphics[width=\linewidth]{force_vxvy.png}
         \caption{Varying $\Delta v_x, \Delta v_y$}
+        \label{fig:force-field-c}
     \end{subfigure}
     \caption{Force field derived from $U_{obst}$.}
     \label{fig:force-field}
 \end{figure}
+\newpage
+\section{Possible Issues}
 
-\subsection{Sensitivity to \texorpdfstring{$\tau_x, \tau_y$}{tau\_x, tau\_y}}
+\subsection{Anomalous dip in the magnitude of force field}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{force_vy.png}
+\end{figure}
+The magnitude of the force field dips near x=0 in the above plot which is undesirable  as the magnitude of force field should be maximum along x=0 when compared to the neighbouring points.
+\subsection{Sensitivity to $\tau_x, \tau_y$ and Parallel Forces}
 
 \begin{figure}[H]
     \centering
@@ -126,8 +140,8 @@ Here $\Delta x, \Delta y$ are the relative position wrt obstacle vehicle, $\Delt
     \caption{Sensitivity of the field to $\tau_x, \tau_y$.}
     \label{fig:tau-sensitivity}
 \end{figure}
-
-\subsection{Velocity at a Fixed Point}
+The shape of the potential is highly sensitive to $\tau_y/\tau_x$ and very high value or a very small value can cause the force field to be parallel in certain region which is not desirable.
+\subsection{Velocity Behavior at a fixed point}
 
 \begin{figure}[H]
     \centering
@@ -135,5 +149,10 @@ Here $\Delta x, \Delta y$ are the relative position wrt obstacle vehicle, $\Delt
     \caption{Velocity at a fixed point.}
     \label{fig:base-vel}
 \end{figure}
+The force increases with increase in receding velocity at a fixed point. In an ideal scenario the force should decrease when the vehicles are receding.
+\subsection{More free parameters than DOF}
+
+The model introduces 4 free parameters ($\lambda$, $\alpha$, $\tau_x$,
+$\tau_y$, $w$, $l$, $\Delta v_{max}$) while the degree of freedom of the model is only 3. So reduction of parameters will help in the optimization problem.
 
 \end{document}

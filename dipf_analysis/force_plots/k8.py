@@ -14,21 +14,21 @@ host_w, host_l = 1.75, 4.5   # assumed host vehicle size, only used to draw the
                               # white "combined footprint" safety box seen in the paper's figure
 xo, yo = 0.0, 30.0       # obstacle vehicle centre position
 # Selected relative velocity for the single plot (kmph).
-PLOT_DVX, PLOT_DVY = 3,3
+PLOT_DVX, PLOT_DVY = 0,3
 
 lam = 10              # scaling factor (lambda), Eq. 1
 dv_max = 10.0             # normalising max relative velocity, Eq. 2
-tau_x, tau_y = 1,3
+tau_x, tau_y = 1,5
 alpha = 1           # velocity-skew sensitivity, Eq. 6
 
-U_CAP = 4000.0               # clip potential for plotting only (paper caps the colour scale too)
+U_CAP = 400000.0               # clip potential for plotting only (paper caps the colour scale too)
 N_LEVELS = 100          # many, finely-spaced levels -> the "fan" pattern near the vehicle
 LEVEL_POWER = 1.0           # linear spacing: the field itself is sharply peaked near the
                             # vehicle, so plain fine levels are enough to reveal the "bullseye"
 
 # Quiver settings
 QUIVER_STRIDE = 16          # subsample the fine grid every N points for arrows
-QUIVER_STEP = 1e-4          # finite-difference step for the gradient
+QUIVER_STEP = 1e-5          # finite-difference step for the gradient
 
 # Single-point force-arrow settings (used by the interactive prompt)
 POINT_ARROW_LEN = 1.0       # fixed on-screen arrow length (data units), since |F| varies wildly
@@ -56,6 +56,8 @@ def f_dv(dx,dy,dvx, dvy):
 def kprime(dx, dy, dvx, dvy):
     def tau(delta, dvel, tau0):
         # return tau0
+        tau_ = np.where(-delta * dvel>0, tau0 * ( 1+alpha * abs(dvel)),tau0)
+        return tau_*0+tau0
         return tau0 * ((1 + alpha * abs(dvel)) + (alpha * abs(dvel) -1) * np.tanh(-delta * dvel)) / 2
 
     tx = tau(dx, dvx, tau_x)
@@ -66,6 +68,8 @@ def kprime(dx, dy, dvx, dvy):
     ty = np.where(np.abs(ty) < eps, eps, ty)
 
     dist = np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2)
+    dist1=np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2)
+    dist2=np.sqrt((dx / ty) ** 2 + (dy / tx) ** 2)
 
     region13 = np.abs(dy) <= (l * np.abs(dx)) / w   # front/behind regions (1 & 3)
 
