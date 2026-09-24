@@ -56,8 +56,8 @@
     k(\Delta x, \Delta y, \Delta v_x, \Delta v_y) =
     \begin{cases}
         0, & \text{if } |\Delta y| < l \text{ and } |\Delta x| < w \\[4pt]
-        \left(1 - \dfrac{w}{|\Delta x|}\right) \sqrt{\left(\dfrac{\Delta x}{\tau_x}\right)^2 + \left(\dfrac{\Delta y}{\tau_y}\right)^2}, & \text{if } |\Delta y| \leq \dfrac{l\,|\Delta x|}{w} \\[8pt]
-        \left(1 - \dfrac{l}{|\Delta y|}\right) \sqrt{\left(\dfrac{\Delta x}{\tau_x}\right)^2 + \left(\dfrac{\Delta y}{\tau_y}\right)^2}, & \text{otherwise}
+        \left(1 - \dfrac{w}{|\Delta x|}\right) \sqrt{\left(\dfrac{\Delta x}{\tau(\Delta x, \Delta v_x)}\right)^2 + \left(\dfrac{\Delta y}{\tau(\Delta y, \Delta v_y)}\right)^2}, & \text{if } |\Delta y| \leq \dfrac{l\,|\Delta x|}{w} \\[8pt]
+        \left(1 - \dfrac{l}{|\Delta y|}\right) \sqrt{\left(\dfrac{\Delta x}{\tau(\Delta x, \Delta v_x)}\right)^2 + \left(\dfrac{\Delta y}{\tau(\Delta y, \Delta v_y)}\right)^2}, & \text{otherwise}
     \end{cases}
     \label{eq:k-prime}
 \end{equation}
@@ -155,4 +155,215 @@ The force increases with increase in receding velocity at a fixed point. In an i
 The model introduces 4 free parameters ($\lambda$, $\alpha$, $\tau_x$,
 $\tau_y$) while the degree of freedom of the model is only 3. So reduction of parameters will help in the optimization problem.
 
+\section{Potential Fix}
+
+\subsection{Anomalous dip in the magnitude of force field}
+
+\subsubsection{The Cause}
+The dip happen because we are using skewed distance $k=\sqrt{(x/\tau_x)^2+(y/\tau_y)^2}$
+\[
+U(k) = \frac{\lambda\,(|\Delta v| / \Delta v_{max})}{k}, \qquad F = -\nabla U .
+\]
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\textwidth]{force_dip_before_fix.png}
+\end{figure}
+
+\[\nabla U = U'(\rho)\,\nabla k \]
+\[
+|\nabla U| \;=\; |U'(k)|\cdot|\nabla k|,
+\]
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{force_dip_cause.png}
+\end{figure}
+\subsubsection{The fix}
+\[
+U'(k) = -\frac{\lambda\,(|\Delta v| / \Delta v_{max})}{k^{2}} .
+\]
+$U'(k)$ falls off smoothly with $k$ and has no dip or ridge of its own. 
+\[
+F = -\frac{\nabla U}{|\nabla \rho|} = -U'(\rho)\,\frac{\nabla \rho}{|\nabla\rho|},
+\qquad |F| = |U'(\rho)| .
+\]
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\textwidth]{force_dip_after_fix.png}
+\end{figure}
+
+\subsection{Sensitivity to $\tau_x, \tau_y$}
+\subsubsection{The cause}
+\[
+U = \frac{\lambda(\Delta v/v)}{k}
+\]
+\[
+k =
+\begin{cases}
+0, & |\Delta y| < l \text{ and } |\Delta x| < w \\[4pt]
+\left(1-\dfrac{w}{|\Delta x|}\right)\sqrt{\left(\dfrac{\Delta x}{\tau(\Delta x,\Delta v_x)}\right)^2 + \left(\dfrac{\Delta y}{\tau(\Delta y,\Delta v_y)}\right)^2}, & |\Delta y| \le \dfrac{l|\Delta x|}{w} \\[8pt]
+\left(1-\dfrac{l}{|\Delta y|}\right)\sqrt{\left(\dfrac{\Delta x}{\tau_x}\right)^2 + \left(\dfrac{\Delta y}{\tau_y}\right)^2}, & \text{otherwise}
+\end{cases}
+\]
+
+If $\tau_y/\tau_x \ll 1$, i.e.\ $\tau_y \ll \tau_x$, the $y^2/\tau_y^2$ term dominates. The potential then does not change across $x$, so the lateral force is absent in the forward and backward regions. The same issue occurs in the side region when $\tau_y/\tau_x \gg 1$.
+
+\subsubsection{The Fix} 
+$k$ splits the space into different regions, so different $\tau$ values can be used for different regions:
+\[
+K =
+\begin{cases}
+0, & |\Delta y| < l \text{ and } |\Delta x| < w \\[4pt]
+\left(1-\dfrac{w}{|\Delta x|}\right)\sqrt{\left(\dfrac{\Delta x}{\tau(\Delta x,\Delta v_x,\tau_2)}\right)^2 + \left(\dfrac{\Delta y}{\tau(\Delta y,\Delta v_y,\tau_1)}\right)^2}, & |\Delta y| \le \dfrac{l|\Delta x|}{w} \\[8pt]
+\left(1-\dfrac{l}{|\Delta y|}\right)\sqrt{\left(\dfrac{\Delta x}{\tau(\Delta x,\Delta v_x,\tau_1)}\right)^2 + \left(\dfrac{\Delta y}{\tau(\Delta y,\Delta v_y,\tau_2)}\right)^2}, & \text{otherwise}
+\end{cases}
+\]
+\[
+\tau(\Delta x, \Delta v_x, \tau) = \frac{\tau}{2}\Big[(1+\alpha|\Delta v_x|) + (\alpha|\Delta v_x|-1)\tanh(-\Delta x \Delta v_x)\Big]
+\]
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{force_tau_before_fix.png}
+        \caption{$\tau_y/\tau_x > 5 (before modification)$}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{force_tau_after_fix.png}
+        \caption{$\tau_2/\tau_1 > 5 (after modification)$}
+    \end{subfigure}
+\end{figure}
+
+\subsection{Velocity Behaviour}
+\subsubsection{The Issue}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{base_vel.png}
+\end{figure}
+Velocity increases with increase in receding velocity is due to the $|\Delta v|/\Delta v_{max}$ term in the numerator of the potential function.
+
+\subsubsection{The Fix}
+Remove that term from numerator 
+\[
+U(k) = \frac{\lambda}{k}, 
+\]
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{vel_original.png}
+\end{figure}
+
+The kink in the above plot is due to the term 
+\[
+\tau=\Big((1+\alpha|\Delta v_x|) + (\alpha|\Delta v_x|-1)\tanh(-\Delta x \Delta v_x)\Big)\,\tau_x
+\]
+The original goal was to have
+\[
+\tau = \tau_x \ \text{(vehicle receding)}, \qquad \tau = \alpha\tau_x|\Delta v_x| \ \text{(vehicle approaching)}
+\]
+Its better to have $\tau$ greater in cases when vehicles are approaching.
+\[
+\tau = \tau_x \ \text{(vehicle receding)}, \qquad \tau = \tau_x(1+\alpha|\Delta v_x|) \ \text{(vehicle approaching)}
+\]
+\paragraph{Formulation 1:}
+\[
+\tau=\Big((1+(1+\alpha|\Delta v_x|)) + ((1+\alpha|\Delta v_x|)-1)\tanh(-\Delta x \Delta v_x)\Big)\,\tau_x
+\]
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{vel_formulation1.png}
+    \caption{Force magnitude vs.\ $\Delta v_x$ under Formulation 1.}
+\end{figure}
+
+We want the repulsive force to decrease with increase in receding velocity.
+\paragraph{Formulation 2:}
+\[
+\tau=\Big((\frac1{1+\alpha|\Delta v_x|}+(1+\alpha|\Delta v_x|)) + ((1+\alpha|\Delta v_x|)-\frac1{1+\alpha|\Delta v_x|})\tanh(-\Delta x \Delta v_x)\Big)\,\tau_x
+\]
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{vel_formulation2.png}
+    \caption{Force magnitude vs.\ $\Delta v_x$ under Formulation 2.}
+\end{figure}
+
+Now if consideer the case for high approaching velocity, we have $ \tau \approx \alpha|\Delta v_x|\,\tau_x $. Here the params $ \alpha $ and $ \tau_x $ are kind of redundant. We could otherwise use $\alpha$ to control the power to which the approaching velocity affects $ \tau $. 
+\paragraph{Formulation 3:}
+\[
+\tau=\Big((\frac1{(1+|\Delta v_x|)^{\alpha}}+(1+|\Delta v_x|)^{\alpha}) + ((1+|\Delta v_x|^{\alpha})-\frac1{(1+|\Delta v_x|)^{\alpha}})\tanh(-\Delta x \Delta v_x)\Big)\,\tau_x
+\]
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{vel_formulation3.png}
+    \caption{Force magnitude vs.\ $\Delta v_x$ under Formulation 3.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{form_1.png}
+        \caption{Formulation 1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{form_2.png}
+        \caption{Formulation 2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{form_3.png}
+        \caption{Formulation 3}
+    \end{subfigure}
+\end{figure}
+
+\subsection{Free Parameters}
+If we define
+\[
+\gamma = \frac{\tau_y}{\tau_x}, \qquad \beta = \lambda \tau_x
+\]
+The original equation reduces to
+\[
+U = \frac{\beta(\Delta v/v)}{k}
+\]
+\[
+k =
+\begin{cases}
+0, & |\Delta y| < l \text{ and } |\Delta x| < w \\[4pt]
+\left(1-\dfrac{w}{|\Delta x|}\right)\sqrt{(\Delta x)^2 + \left(\dfrac{\Delta y}{\tau(\gamma)}\right)^2}, & |\Delta y| \le \dfrac{l|\Delta x|}{w} \\[8pt]
+\left(1-\dfrac{l}{|\Delta y|}\right)\sqrt{(\Delta x)^2 + \left(\dfrac{\Delta y}{\tau(\gamma)}\right)^2}, & \text{otherwise}
+\end{cases}
+\]
+
+This reduces the free parameters from $\lambda,  \tau_x, \tau_y$ to $\gamma$ and $\beta$.
+\section{Final Combinations}
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{final_1.png}
+        \caption{combining all modifications}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{final_2.png}
+        \caption{formulation 1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{final_3.png}
+        \caption{formulation1 without tau  correction}
+    \end{subfigure}
+\end{figure}
 \end{document}

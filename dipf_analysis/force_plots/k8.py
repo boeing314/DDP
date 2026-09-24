@@ -18,8 +18,8 @@ PLOT_DVX, PLOT_DVY = 0,3
 
 lam = 10              # scaling factor (lambda), Eq. 1
 dv_max = 10.0             # normalising max relative velocity, Eq. 2
-tau_x, tau_y = 1,5
-alpha = 1           # velocity-skew sensitivity, Eq. 6
+tau_x, tau_y = 1,3
+alpha = 1.25        # velocity-skew sensitivity, Eq. 6
 
 U_CAP = 400000.0               # clip potential for plotting only (paper caps the colour scale too)
 N_LEVELS = 100          # many, finely-spaced levels -> the "fan" pattern near the vehicle
@@ -56,20 +56,27 @@ def f_dv(dx,dy,dvx, dvy):
 def kprime(dx, dy, dvx, dvy):
     def tau(delta, dvel, tau0):
         # return tau0
-        tau_ = np.where(-delta * dvel>0, tau0 * ( 1+alpha * abs(dvel)),tau0)
-        return tau_*0+tau0
-        return tau0 * ((1 + alpha * abs(dvel)) + (alpha * abs(dvel) -1) * np.tanh(-delta * dvel)) / 2
+        tau_ = np.where(-delta * dvel>0, tau0 * ( 1+ abs(dvel))**alpha,tau0/(( 1+ abs(dvel))**alpha))
+        # return tau_
+        # return tau0 * ((1 + alpha * abs(dvel)) + (alpha * abs(dvel)-1) * np.tanh(-delta * dvel)) / 2
+        return tau0 * ((1+1+ alpha*abs(dvel)) + (1+alpha * abs(dvel)-1) * np.tanh(-delta * dvel)) / 2
+        # return tau0 * ((1/(1+ alpha*abs(dvel))+1+ alpha*abs(dvel)) + (1+alpha * abs(dvel)-1/(1+ alpha*abs(dvel))) * np.tanh(-delta * dvel)) / 2
+        return tau0 * ((1/((1+ abs(dvel))**alpha)+((1+ abs(dvel))**alpha)) + (((1+ abs(dvel))**alpha)-1/((1+ abs(dvel))**alpha)) * np.tanh(-delta * dvel)) / 2
 
     tx = tau(dx, dvx, tau_x)
     ty = tau(dy, dvy, tau_y)
+    tx2 = tau(dx, dvx, tau_y)
+    ty2 = tau(dy, dvy, tau_x)
 
     eps = 1e-6
     tx = np.where(np.abs(tx) < eps, eps, tx)
     ty = np.where(np.abs(ty) < eps, eps, ty)
+    tx2 = np.where(np.abs(tx2) < eps, eps, tx2)
+    ty2 = np.where(np.abs(ty2) < eps, eps, ty2)
 
     dist = np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2)
     dist1=np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2)
-    dist2=np.sqrt((dx / ty) ** 2 + (dy / tx) ** 2)
+    dist2=np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2)
 
     region13 = np.abs(dy) <= (l * np.abs(dx)) / w   # front/behind regions (1 & 3)
 
@@ -80,7 +87,7 @@ def kprime(dx, dy, dvx, dvy):
     abs_dx = np.where(np.abs(dx) < eps, eps, np.abs(dx))
     abs_dy = np.where(np.abs(dy) < eps, eps, np.abs(dy))
 
-    k_13 = (1 - w / abs_dx) * dist
+    k_13 = (1 - w / abs_dx) * dist2
     k_24 = (1 - l / abs_dy) * dist
 
     return np.where(region13, k_13, k_24)

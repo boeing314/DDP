@@ -1,3 +1,16 @@
+"""
+Variant of k8.py using the rescaled force F = -grad(U) / |grad(rho)|,
+where rho = |k'| (the pseudo-distance from Eq. 6) plays the role of the
+risk coordinate rho in grad_rho_intuition.tex.
+
+|grad U| = |U'(rho)| * |grad rho|  =>  |grad U| / |grad rho| = |U'(rho)|
+
+Dividing the *vector* -grad(U) componentwise by the *scalar* |grad rho|
+only rescales it -- it never rotates it -- and removes the "exchange
+rate" artefact that produces the anomalous dip in the plain force field.
+Everything else (Eq. 1, Eq. 2, Eq. 6, the scene, the interactive prompt)
+is unchanged from k8.py.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -14,21 +27,21 @@ host_w, host_l = 1.75, 4.5   # assumed host vehicle size, only used to draw the
                               # white "combined footprint" safety box seen in the paper's figure
 xo, yo = 0.0, 30.0       # obstacle vehicle centre position
 # Selected relative velocity for the single plot (kmph).
-PLOT_DVX, PLOT_DVY = 3,3
+PLOT_DVX, PLOT_DVY = 3,-3
 
-lam = 10              # scaling factor (lambda), Eq. 1
+lam = 0.7            # scaling factor (lambda), Eq. 1
 dv_max = 10.0             # normalising max relative velocity, Eq. 2
 tau_x, tau_y = 1,3
-alpha = 1           # velocity-skew sensitivity, Eq. 6
+alpha = 1.1          # velocity-skew sensitivity, Eq. 6
 
-U_CAP = 4000.0               # clip potential for plotting only (paper caps the colour scale too)
+U_CAP = 400000.0               # clip potential for plotting only (paper caps the colour scale too)
 N_LEVELS = 100          # many, finely-spaced levels -> the "fan" pattern near the vehicle
 LEVEL_POWER = 1.0           # linear spacing: the field itself is sharply peaked near the
                             # vehicle, so plain fine levels are enough to reveal the "bullseye"
 
 # Quiver settings
 QUIVER_STRIDE = 16          # subsample the fine grid every N points for arrows
-QUIVER_STEP = 1e-4          # finite-difference step for the gradient
+QUIVER_STEP = 1e-5          # finite-difference step for the gradient
 
 # Single-point force-arrow settings (used by the interactive prompt)
 POINT_ARROW_LEN = 1.0       # fixed on-screen arrow length (data units), since |F| varies wildly
@@ -36,8 +49,11 @@ POINT_ARROW_COLOR = "cyan"
 
 # Force clipping bounds -- used for the background color scale, the quiver
 # arrow alpha (transparency), and the point-arrow annotations.
-FORCE_CLIP_MIN = 1.0
+FORCE_CLIP_MIN = 0.1
 FORCE_CLIP_MAX = 100.0
+
+# Guard against dividing by a near-zero |grad rho|.
+GRAD_RHO_EPS = 1e-9
 
 
 # ============================================================
@@ -47,7 +63,7 @@ FORCE_CLIP_MAX = 100.0
 def f_dv(dx,dy,dvx, dvy):
     #return (np.hypot(dvx, dvy)**(alpha*np.tanh(-dvx*dx - dvy*dy))) / dv_max
     return dvx*0+1
-    return np.hypot(dvx, dvy) / dv_max  
+    return np.hypot(dvx, dvy) / dv_max
 
 
 # ============================================================
@@ -56,16 +72,28 @@ def f_dv(dx,dy,dvx, dvy):
 def kprime(dx, dy, dvx, dvy):
     def tau(delta, dvel, tau0):
         # return tau0
-        return tau0 * ((1 + alpha * abs(dvel)) + (alpha * abs(dvel) -1) * np.tanh(-delta * dvel)) / 2
+        tau_ = np.where(-delta * dvel>0, tau0 * ( 1+ abs(dvel))**alpha,tau0/(( 1+ abs(dvel))**alpha))
+        # return tau0 * ((1 + alpha * abs(dvel)) + (alpha * abs(dvel)-1) * np.tanh(-delta * dvel)) / 2
 
-    tx = tau_x
-    ty = tau_y
+        # return tau0 * ((1 + alpha * abs(dvel)) + (alpha * abs(dvel)-1) * np.tanh(-delta * dvel)) / 2
+        return tau0 * ((1+1+ alpha*abs(dvel)) + (1+alpha * abs(dvel)-1) * np.tanh(-delta * dvel)) / 2
+        # return tau0 * ((1/(1+ alpha*abs(dvel))+1+ alpha*abs(dvel)) + (1+alpha * abs(dvel)-1/(1+ alpha*abs(dvel))) * np.tanh(-delta * dvel)) / 2
+        return tau0 * ((1/((1+ abs(dvel))**alpha)+((1+ abs(dvel))**alpha)) + (((1+ abs(dvel))**alpha)-1/((1+ abs(dvel))**alpha)) * np.tanh(-delta * dvel)) / 2
+
+    tx = tau(dx, dvx, tau_x)
+    ty = tau(dy, dvy, tau_y)
+    tx2 = tau(dx, dvx, tau_y)
+    ty2 = tau(dy, dvy, tau_x)
 
     eps = 1e-6
     tx = np.where(np.abs(tx) < eps, eps, tx)
     ty = np.where(np.abs(ty) < eps, eps, ty)
+    tx2 = np.where(np.abs(tx2) < eps, eps, tx2)
+    ty2 = np.where(np.abs(ty2) < eps, eps, ty2)
 
-    dist = (np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2))/(((1 + alpha * abs(np.hypot(dvx, dvy))) + (alpha * abs(np.hypot(dvx, dvy)) -1) * np.tanh(-(dvx*dx+dvy*dy))))
+    dist = np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2)
+    dist1=np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2)
+    dist2=np.sqrt((dx / tx) ** 2 + (dy / ty) ** 2)
 
     region13 = np.abs(dy) <= (l * np.abs(dx)) / w   # front/behind regions (1 & 3)
 
@@ -76,10 +104,21 @@ def kprime(dx, dy, dvx, dvy):
     abs_dx = np.where(np.abs(dx) < eps, eps, np.abs(dx))
     abs_dy = np.where(np.abs(dy) < eps, eps, np.abs(dy))
 
-    k_13 = (1 - w / abs_dx) * dist
-    k_24 = (1 - l / abs_dy) * dist
+    k_13 = (1 - w / abs_dx) * dist2
+    k_24 = (1 - l / abs_dy) * dist1
 
     return np.where(region13, k_13, k_24)
+
+
+# ============================================================
+# rho = |k'| -- the risk coordinate that U is actually a function of.
+# ============================================================
+def rho_at(X, Y, dvx, dvy):
+    dx = xo - X   # Delta x = xo - xh
+    dy = yo - Y   # Delta y = yo - yh
+    k = kprime(dx, dy, dvx, dvy)
+    k = np.where(k <= 0, 1e-4, k)   # same divide-by-zero guard as potential()
+    return np.abs(k)
 
 
 # ============================================================
@@ -106,6 +145,16 @@ def gradient_field(X, Y, dvx, dvy, step=QUIVER_STEP):
     return dU_dX, dU_dY
 
 
+def rho_gradient_field(X, Y, dvx, dvy, step=QUIVER_STEP):
+    """Central-difference gradient of rho=|k'| over an array of (X, Y) points.
+    Returns d(rho)/dX, d(rho)/dY, same shape as X/Y."""
+    d_rho_dX = (rho_at(X + step, Y, dvx, dvy) -
+                rho_at(X - step, Y, dvx, dvy)) / (2 * step)
+    d_rho_dY = (rho_at(X, Y + step, dvx, dvy) -
+                rho_at(X, Y - step, dvx, dvy)) / (2 * step)
+    return d_rho_dX, d_rho_dY
+
+
 def gradient_magnitude_at(X, Y, dvx, dvy, step=1e-3):
     """Numerically evaluate |∇U| at one position using central differences."""
     dU_dX, dU_dY = gradient_field(np.array(X), np.array(Y), dvx, dvy, step)
@@ -113,9 +162,12 @@ def gradient_magnitude_at(X, Y, dvx, dvy, step=1e-3):
 
 
 def force_at_point(X, Y, dvx, dvy, step=QUIVER_STEP):
-    """Evaluate F = -grad(U) at a single (X, Y). Returns (Fx, Fy, |F|)."""
+    """Evaluate F = -grad(U) / |grad(rho)| at a single (X, Y).
+    Returns (Fx, Fy, |F|)."""
     dU_dX, dU_dY = gradient_field(np.array(X), np.array(Y), dvx, dvy, step)
-    Fx, Fy = -float(dU_dX), -float(dU_dY)
+    d_rho_dX, d_rho_dY = rho_gradient_field(np.array(X), np.array(Y), dvx, dvy, step)
+    grad_rho_mag = max(float(np.hypot(d_rho_dX, d_rho_dY)), GRAD_RHO_EPS)
+    Fx, Fy = -float(dU_dX) / grad_rho_mag, -float(dU_dY) / grad_rho_mag
     mag = float(np.hypot(Fx, Fy))
     return Fx, Fy, mag
 
@@ -123,11 +175,11 @@ def force_at_point(X, Y, dvx, dvy, step=QUIVER_STEP):
 def plot_force_at_point(ax, X, Y, dvx, dvy, color=POINT_ARROW_COLOR,
                          arrow_len=POINT_ARROW_LEN, label_prefix=""):
     """
-    Draw the force vector F=-grad(U) at a single point on an existing axes.
-    Direction is exact; on-screen length is fixed (arrow_len) since |F| can
-    span orders of magnitude, so a true-length arrow would often be invisible
-    or huge. The actual magnitude is annotated as text instead.
-    Returns (Fx, Fy, |F|).
+    Draw the rescaled force vector F=-grad(U)/|grad(rho)| at a single point
+    on an existing axes. Direction is exact; on-screen length is fixed
+    (arrow_len) since |F| can span orders of magnitude, so a true-length
+    arrow would often be invisible or huge. The actual magnitude is
+    annotated as text instead. Returns (Fx, Fy, |F|).
     """
     Fx, Fy, mag = force_at_point(X, Y, dvx, dvy)
 
@@ -152,8 +204,9 @@ def prompt_force_at_points(scenarios, fig, ax=None):
     """
     Keep the figure responsive while accepting X, Y coordinates in the
     terminal. Prints |grad U| for each scenario, and -- if `ax` is given --
-    also draws the force vector F=-grad(U) at that point directly on the
-    figure (one arrow per scenario, since each has a different dvx, dvy).
+    also draws the rescaled force vector F=-grad(U)/|grad(rho)| at that
+    point directly on the figure (one arrow per scenario, since each has a
+    different dvx, dvy).
     """
     entries = Queue()
 
@@ -207,7 +260,7 @@ def prompt_force_at_points(scenarios, fig, ax=None):
                 Fx, Fy, mag = plot_force_at_point(
                     ax, X, Y, dvx, dvy, color=color, label_prefix=label
                 )
-                print(f"    F=(-∂U/∂X, -∂U/∂Y)=({Fx:.4f}, {Fy:.4f}), |F|={mag:.4f}")
+                print(f"    F=(-∂U/∂X, -∂U/∂Y)/|∇ρ|=({Fx:.4f}, {Fy:.4f}), |F|={mag:.4f}")
 
         if ax is not None:
             fig.canvas.draw_idle()
@@ -266,17 +319,18 @@ def plot_force_quiver(dvx=PLOT_DVX, dvy=PLOT_DVY, fname="force_quiver.png",
                        arrow_color="cyan", arrow_len=0.6,
                        alpha_min=0.15, alpha_max=1.0):
     """
-    Force field F = -grad(U), split across two visual channels so both the
-    near-singularity corners and the near-zero far field stay legible:
+    Rescaled force field F = -grad(U) / |grad(rho)|, split across two visual
+    channels so both the near-singularity corners and the near-zero far
+    field stay legible:
 
       - background: |F| (log-scaled, clipped to [clip_min, clip_max]) as a
-        smooth color field -- shows the overall magnitude landscape.
+        smooth color field -- shows the overall magnitude landscape. This
+        equals |U'(rho)|, so it should be free of the anomalous dip seen in
+        the plain -grad(U) field.
       - quiver arrows: all drawn at the *same* on-screen length (direction
-        only), with transparency (alpha) encoding |F| on the same clipped
-        log scale as the background -- faint arrows = weak force, opaque
-        arrows = strong force. A true-length arrow would be invisible in the
-        far field or enormous near the vehicle corners, so length is freed
-        up to just show direction cleanly.
+        only, unaffected by the rescaling), with transparency (alpha)
+        encoding |F| on the same clipped log scale as the background --
+        faint arrows = weak force, opaque arrows = strong force.
     """
     x = np.linspace(-6, 6, 400)
     y = np.linspace(20, 40, 400)
@@ -284,9 +338,11 @@ def plot_force_quiver(dvx=PLOT_DVX, dvy=PLOT_DVY, fname="force_quiver.png",
 
     fig, ax = plt.subplots(figsize=(5.5, 5))
 
-    # --- background: |F| magnitude over the full fine grid ---
+    # --- background: |F| = |grad U| / |grad rho| over the full fine grid ---
     dU_dX, dU_dY = gradient_field(X, Y, dvx, dvy)
-    mag_full = np.hypot(dU_dX, dU_dY)
+    d_rho_dX, d_rho_dY = rho_gradient_field(X, Y, dvx, dvy)
+    grad_rho_mag_full = np.maximum(np.hypot(d_rho_dX, d_rho_dY), GRAD_RHO_EPS)
+    mag_full = np.hypot(dU_dX, dU_dY) / grad_rho_mag_full
 
     mesh = ax.pcolormesh(X, Y, np.clip(mag_full, clip_min, clip_max),
                           cmap="inferno", norm=LogNorm(vmin=clip_min, vmax=clip_max),
@@ -306,7 +362,9 @@ def plot_force_quiver(dvx=PLOT_DVX, dvy=PLOT_DVY, fname="force_quiver.png",
     Yq = Y[::QUIVER_STRIDE, ::QUIVER_STRIDE]
 
     dU_dXq, dU_dYq = gradient_field(Xq, Yq, dvx, dvy)
-    Fxq, Fyq = -dU_dXq, -dU_dYq  # force = -grad(U)
+    d_rho_dXq, d_rho_dYq = rho_gradient_field(Xq, Yq, dvx, dvy)
+    grad_rho_magq = np.maximum(np.hypot(d_rho_dXq, d_rho_dYq), GRAD_RHO_EPS)
+    Fxq, Fyq = -dU_dXq / grad_rho_magq, -dU_dYq / grad_rho_magq  # F = -grad(U)/|grad(rho)|
 
     magq = np.hypot(Fxq, Fyq)
     eps = 1e-12
@@ -325,7 +383,8 @@ def plot_force_quiver(dvx=PLOT_DVX, dvy=PLOT_DVY, fname="force_quiver.png",
 
     draw_scene(ax)
 
-    ax.set_title(f"Force field \n$\\Delta v_x$={dvx} kmph, $\\Delta v_y$={dvy} kmph",
+    ax.set_title(f"Force field  $F=-\\nabla U/|\\nabla\\rho|$\n"
+                 f"$\\Delta v_x$={dvx} kmph, $\\Delta v_y$={dvy} kmph",
                  fontsize=10)
     ax.set_xlabel("X")
     ax.set_ylabel("Y")

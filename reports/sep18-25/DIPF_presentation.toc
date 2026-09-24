@@ -1,0 +1,4 @@
+\beamer@sectionintoc {1}{Cuurent Obtsacle Potential Function}{2}{0}{1}
+\beamer@sectionintoc {2}{Possible Issues}{6}{0}{2}
+\beamer@sectionintoc {3}{Potential Fixes}{11}{0}{3}
+\beamer@sectionintoc {4}{Combining the changes}{25}{0}{4}

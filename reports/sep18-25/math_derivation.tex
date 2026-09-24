@@ -1,0 +1,59 @@
+\subsubsection{Mathetmatical explanation for the dip in the magnitude of force field}
+Consider a simple potential formulation with a skewed distance.
+\[
+U = \frac{1}{k}, \qquad k = \sqrt{x^2 + \frac{y^2}{\gamma^2}}
+\]
+
+\[
+\frac{\partial U}{\partial x} = -xk^{-3}, \qquad
+\frac{\partial U}{\partial y} = -\frac{y}{\gamma^2}k^{-3}
+\]
+\[
+|\nabla U|^2 = \frac{x^2 + y^2/\gamma^4}{k^6}
+= \frac{x^2 + y^2/\gamma^4}{(x^2+y^2/\gamma^2)^3}
+\]
+
+We fix $y=c$ and if the force field has no dip then $|\nabla U|^2_{y=c}$ should have a local maximum at $x=0$
+\[
+g(x) = |\nabla U|^2\Big|_{y=c} = \frac{x^2 + c^2/\gamma^4}{(x^2+c^2/\gamma^2)^3}
+\]
+\[
+g'(x) = \frac{2x}{(x^2+c^2/\gamma^2)^3} + \frac{(x^2+c^2/\gamma^4)(2x)(-3)}{(x^2+c^2/\gamma^2)^4}
+\]
+
+Setting $g'(x)=0$:
+\[
+x^2 = \frac{3(x^2+c^2/\gamma^4)}{(x^2+c^2/\gamma^2)}
+\implies 2x^2 + \frac{c^2}{\gamma^2} = 3x^2 + \frac{3c^2}{\gamma^4}
+\]
+\[
+x^2 = c^2\left(\frac{1}{\gamma^2} - \frac{3}{\gamma^4}\right)
+\]
+
+For no dip, no real solution should exist:
+\[
+\frac{1}{\gamma^2} \le \frac{3}{\gamma^4} \implies \gamma \le \sqrt{3}
+\]
+So whenever skewness ratio $\gamma\ge \sqrt{3}$ the force field has a dip at $x=0$.
+
+\subsubsection{Intuitive explanation for the dip}
+
+
+Alternatively, using $|\nabla k|$:
+\[
+\frac{\partial k}{\partial x} = \frac{x}{k}, \qquad
+\frac{\partial k}{\partial y} = \frac{y}{k\gamma^2}
+\]
+\[
+|\nabla k| = \frac{1}{k}\sqrt{x^2 + \frac{y^2}{\gamma^4}}
+\]
+\[
+F = \frac{|\nabla U|^2}{|\nabla k|^2} = \frac{1}{k(x^2+y^2/\gamma^2)^3}
+\]
+
+Fixing $y=c$ ($c \ge 0$):
+\[
+F = \frac{1}{k(x^2+c)^3}
+\]
+
+$F$ is maximum at $x=0$.

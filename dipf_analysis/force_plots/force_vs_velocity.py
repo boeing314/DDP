@@ -20,7 +20,7 @@ DVY = 0.7
 VMIN, VMAX = -10.0, 10.0
 
 
-def force_vs_velocity(x, y, dvy=DVY, vmin=VMIN, vmax=VMAX, n=200):
+def force_vs_velocity(x, y, dvy=DVY, vmin=VMIN, vmax=VMAX, n=2000):
     """Return (dvx, |F|) arrays at (x, y) as dvx sweeps from vmin to vmax
     with dvy held fixed."""
     dvx = np.linspace(vmin, vmax, n)
@@ -58,7 +58,7 @@ if __name__ == "__main__":
                          help=f"min dvx (default {VMIN})")
     parser.add_argument("--vmax", type=float, default=VMAX,
                          help=f"max dvx (default {VMAX})")
-    parser.add_argument("--n", type=int, default=200,
+    parser.add_argument("--n", type=int, default=2000,
                          help="number of samples between vmin and vmax")
     args = parser.parse_args()
 
