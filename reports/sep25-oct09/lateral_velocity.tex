@@ -1,0 +1,349 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\definecolor{accent}{RGB}{102,18,18}
+\definecolor{codebg}{RGB}{245,244,240}
+\definecolor{codebad}{RGB}{170,30,30}
+\hypersetup{colorlinks=true, linkcolor=accent, urlcolor=accent}
+\lstset{basicstyle=\ttfamily\footnotesize, backgroundcolor=\color{codebg}, frame=none, columns=fullflexible,
+        keepspaces=true, showstringspaces=false, escapeinside={(*}{*)}, xleftmargin=6pt, xrightmargin=6pt,
+        aboveskip=8pt, belowskip=8pt}
+
+\title{\color{accent}\textbf{SUMO Simulation: Lateral Velocity of the Ego, the Adaptive Policy and Identical Runs}}
+\date{Sep 25 -- Oct 9}
+
+\begin{document}
+\maketitle
+
+% ===========================================================================
+\section{Lateral velocity of the ego: old code vs new code}
+
+% ---------------------------------------------------------------------------
+\subsection{The issue}
+\begin{itemize}
+  \item The DIPF potential commands a lateral acceleration $a_y = -\partial U/\partial y$ (up to $3~\mathrm{m/s^2}$).
+  \item In the \textbf{old code} the ego barely moves sideways: lane changes are rare and very slow.
+  \item Cause: the lateral velocity $v_y$ is read back from SUMO every step, and SUMO always returns $0$.
+  \item The \textbf{new code} keeps $v_y$ as controller state, so the push builds up into real lateral motion.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\subsection{Old code: $v_y$ is re-read from SUMO every step}
+Files: \texttt{v2/run1/dipf\_controller.py}, \texttt{Pure\_DIPF\_codes.py}.
+\begin{lstlisting}
+vx = traci.vehicle.getSpeed(EGO_ID)
+vy = traci.vehicle.getLateralSpeed(EGO_ID)        (*\color{codebad}\# always 0 for the ego*)
+
+ay = clamp(-dUy, -AY_MAX, AY_MAX)
+vy_apply = clamp(vy + ay*dt, -VY_MAX, VY_MAX)     (*\color{codebad}\# computed, never stored*)
+y_new = y + vy*dt + 0.5*ay*dt**2                  (*\color{codebad}\# vy = 0: only 0.5*ay*dt**2 is left*)
+traci.vehicle.moveToXY(EGO_ID, ..., x_new, y_new, ...)
+\end{lstlisting}
+\begin{itemize}
+  \item The longitudinal speed works: \texttt{setSpeed()} stores it in SUMO and \texttt{getSpeed()} reads it back.
+  \item There is no equivalent for the lateral speed.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\subsection{Why SUMO returns $v_y = 0$}
+\begin{itemize}
+  \item Sublane model (\texttt{--lateral-resolution 0.25}, lane-change model SL2015): lanes are split into
+        $0.25~\mathrm{m}$ sublanes, vehicles can sit at any lateral position and move sideways gradually.
+  \item \texttt{getLateralSpeed()} returns the lateral speed \textbf{commanded by SUMO's lane-change model},
+        not the measured motion.
+  \item The ego's lane-change model is disabled (\texttt{setLaneChangeMode(ego, 0)}) and the ego is placed with
+        \texttt{moveToXY} (a teleport) $\Rightarrow$ no manoeuvre $\Rightarrow$ $v_y = 0$.
+  \item Other vehicles are moved by the lane-change model, so their lateral speed is correct.
+\end{itemize}
+
+\paragraph{Check in SUMO.} The ego was moved $0.2~\mathrm{m}$ sideways every step ($2~\mathrm{m/s}$) with
+\texttt{moveToXY} (scenario s05003, SUMO 1.27.1):
+
+\begin{center}
+\begin{tabular}{cccc}
+  \toprule
+  step & ego moved sideways & ego \texttt{getLateralSpeed} & other vehicles (max) \\
+  \midrule
+  1  & $+0.20$ m & $0.00$ m/s & $0.10$ m/s \\
+  4  & $+0.20$ m & $0.00$ m/s & $0.40$ m/s \\
+  8  & $+0.20$ m & $0.00$ m/s & $0.80$ m/s \\
+  10 & $+0.20$ m & $0.00$ m/s & $0.50$ m/s \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+% ---------------------------------------------------------------------------
+\subsection{Effect on the motion}
+Constant lateral push $a_y = 3~\mathrm{m/s^2}$, $v_x = 15~\mathrm{m/s}$:
+
+\begin{center}
+\begin{tabular}{ccc}
+  \toprule
+  time & old code: $y$ & new code: $y$ \\
+  \midrule
+  0.5 s & 0.08 m & 0.38 m \\
+  1.0 s & 0.15 m & 1.50 m \\
+  1.5 s & 0.23 m & 3.00 m \\
+  3.0 s & 0.45 m & 7.50 m \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+  \item Old: $\Delta y = \tfrac{1}{2} a_y \Delta t^2 \le 0.015~\mathrm{m}$ per step, i.e.\ about $0.15~\mathrm{m/s}$
+        of drift (lane width $3.5~\mathrm{m}$).
+  \item New: $v_y$ builds up to its $3~\mathrm{m/s}$ cap in $1~\mathrm{s}$; a lane change takes about $1.5~\mathrm{s}$.
+\end{itemize}
+
+\subsubsection*{Why the old code still shows some lateral movement}
+\begin{itemize}
+  \item The $\tfrac{1}{2} a_y \Delta t^2$ term accumulates under a sustained push (e.g.\ stuck behind a slow
+        vehicle): $1.5~\mathrm{m}$ after $10~\mathrm{s}$ at $3~\mathrm{m/s^2}$.
+  \item Fallback in \texttt{safe\_move\_ego}: if \texttt{moveToXY} fails, the ego is placed at the nearest lane
+        centre (a jump of up to $1.75~\mathrm{m}$).
+  \item $y$ is clamped to the safe road band, so the ego is pushed back inside instead of crashing at the edge.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\subsection{New code: $v_x, v_y$ kept by the controller}
+File: \texttt{v14/*/dipf\_controller.py} (\texttt{ego\_control\_step}).
+\begin{lstlisting}
+# once, when the ego appears
+ego_control_step.vx = traci.vehicle.getSpeed(EGO_ID)
+ego_control_step.vy = 0.0
+
+# every step
+vx, vy = ego_control_step.vx, ego_control_step.vy
+vy_apply = clamp(vy + ay*dt, -VY_MAX, VY_MAX)
+vy_apply = clamp(vy_apply, -vx*tan(15 deg), vx*tan(15 deg))   # heading limit
+y_new = y + 0.5*(vy + vy_apply)*dt                            # trapezoidal step
+traci.vehicle.moveToXY(EGO_ID, ..., x_new, y_new, angle=heading)
+ego_control_step.vy = vy_apply                                 (*\color{accent}\# stored for the next step*)
+\end{lstlisting}
+
+% ---------------------------------------------------------------------------
+\subsection{Summary}
+\begin{center}
+\small
+\begin{tabular}{p{3.2cm}p{5.4cm}p{5.4cm}}
+  \toprule
+  & old code & new code \\
+  \midrule
+  lateral velocity          & re-read from SUMO, always $0$          & controller state, integrated \\
+  position                  & front bumper used as body centre       & body centre \\
+  heading                   & chosen by SUMO                         & from $(v_x, v_y)$, passed to \texttt{moveToXY} \\
+  $v_y$ vs $v_x$            & no link                                & $|v_y| \le v_x \tan 15^\circ$ \\
+  road edge                 & position clamped to the road           & leaving the road = collision \\
+  \texttt{moveToXY} failure & snap to the nearest lane centre        & reported as an error \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+
+% ===========================================================================
+\section{The adaptive policy algorithm (v14)}
+The DIPF controller itself is unchanged: every acceleration is still the clamped negative gradient of the
+potential. The adaptive policy only \textbf{retunes four of the potential's parameters every $0.1~\mathrm{s}$}
+from the traffic around the ego. It never outputs an acceleration, so a bad choice can reshape the field but
+cannot command an arbitrary manoeuvre.
+
+% ---------------------------------------------------------------------------
+\subsection{Algorithm}
+Every control step, just before the potential is evaluated:
+\begin{align*}
+  f_t   &= \text{features}(\text{80-value traffic encoding}) \in [0,1]^9 \\
+  z^*_t &= \mathrm{clip}\big(W f_t + b,\; -\ln 10,\; +\ln 10\big)
+          && W \in \mathbb{R}^{4\times 9},\; b \in \mathbb{R}^{4} \;\Rightarrow\; 40 \text{ numbers} \\
+  z_t   &= z_{t-1} + \tfrac{\Delta t}{T}\,(z^*_t - z_{t-1})
+          && \Delta t = 0.1~\mathrm{s},\; T = 1~\mathrm{s};\; z_0 = z^*_0 \\
+  p_t   &= \mathrm{clamp}\big(p_0 \cdot e^{z_t},\; \text{limits}\big)
+          && p = (\lambda_{obs},\, \tau_{y},\, \alpha,\, \text{obs\_radius\_ahead})
+\end{align*}
+\begin{itemize}
+  \item $p_0$ = the trained fixed set from \texttt{v14/base} (CMA-ES over all 7 parameters).
+        $W = 0, b = 0$ reproduces it exactly, so any gain comes from adapting.
+  \item $e^{z}$: multiplicative and always positive; the clip keeps each parameter within $\times 0.1 \dots \times 10$ of $p_0$.
+  \item Smoothing: the exponent moves $10\,\%$ of the way to its target each step, so a parameter follows a
+        sudden change within about $1~\mathrm{s}$ instead of jumping.
+  \item The other parameters ($s_x$, $\delta_{lane}$, $y_{margin}$, $\tau_x = 1$) stay at $p_0$.
+  \item Sign constraint: the weights from \texttt{ttc\_front}, \texttt{ttc\_side\_front}, \texttt{drac\_front}
+        to $\lambda_{obs}$ are $\ge 0$ (repulsion may only grow with danger).
+\end{itemize}
+
+File: \texttt{v14/adaptive/dipf\_controller.py} (\texttt{adapt\_parameters}), \texttt{policy.py}.
+\begin{lstlisting}
+enc = encode((x, y, vx, vy), nearby, road_bounds_y(), EGO_LENGTH, EGO_WIDTH)
+f = pol.features(enc)                                     # 9 features in [0, 1]
+z_target = clip(W @ f + b, -ln10, ln10)
+z = z_target if z is None else z + min(1, dt/T) * (z_target - z)   (*\color{accent}\# smoothing*)
+for k, name in enumerate(params):                         # lambda_obs, tau_y, alpha, radius
+    value[name] = clamp(base[name] * exp(z[k]), *limits[name])
+# ... then the unchanged DIPF step: U, grad U, a = clamp(-grad U), moveToXY
+\end{lstlisting}
+
+% ---------------------------------------------------------------------------
+\subsection{Inputs: nine features}
+All in $[0,1]$, $0$ = nothing there / far away, and unchanged when left and right are swapped (like the controller).
+\begin{center}
+\small
+\begin{tabular}{lll}
+  \toprule
+  feature & definition & large when \\
+  \midrule
+  \texttt{ttc\_front}       & $1 - e^{-1/\mathrm{TTC}}$, vehicle in the ego's path ahead & closing in fast ahead \\
+  \texttt{ttc\_side\_front} & same, worst of front-left / front-right                     & closing on a diagonal vehicle \\
+  \texttt{ttc\_rear\_side}  & same, worst of rear, rear-left/right, alongside & closing from behind/side \\
+  \texttt{drac\_front}      & $1 - e^{-\mathrm{DRAC}/3}$, braking for the car ahead & hard braking needed \\
+  \texttt{gap\_front}       & $e^{-\mathrm{gap}/20\,\mathrm{m}}$                          & vehicle close ahead \\
+  \texttt{gap\_side\_front} & same, closest of front-left / front-right                   & vehicle close diagonally ahead \\
+  \texttt{tight\_lateral}   & $e^{-\mathrm{room}/1\,\mathrm{m}}$ (road edge or side gap)  & no room to swerve \\
+  \texttt{speed}            & $v_x / 34~\mathrm{m/s}$                                     & driving fast \\
+  \texttt{density}          & $1 - e^{-n/10}$, $n$ = vehicles within $\pm 50~\mathrm{m}$  & crowded \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+% ---------------------------------------------------------------------------
+\subsection{Training}
+\begin{itemize}
+  \item No target value of $p_t$ exists, so the 40 numbers are trained directly on closed-loop outcome:
+        $J = \text{success rate} + 0.1 \cdot \text{mean progress}$, takeover ($x \approx 100~\mathrm{m}$) to $x = 400~\mathrm{m}$.
+  \item CMA-ES from $W = 0, b = 0$: $30$ generations $\times$ $15$ candidates, each scored on the same
+        $100$ train scenarios $\times$ $2$ futures (same budget as the fixed base: $450$ candidates).
+  \item Every 4 generations the search mean is scored on validation ($100 \times 3$ runs); the best one is kept
+        (generation 12, validation success $0.730$ vs $0.647$ for the fixed set).
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\subsection{What it learned}
+\begin{itemize}
+  \item $\lambda_{obs}$ (repulsion): rises sharply with a vehicle closing from behind/side
+        (\texttt{ttc\_rear\_side} $+2.0$) or diagonally ahead ($+1.85$), and with tight lateral room ($+1.3$);
+        falls behind a close but non-closing car (\texttt{gap\_front} $-1.7$), so the ego follows calmly.
+  \item $\tau_y$ (lateral reach): grows with speed ($+1.5$), shrinks when closing in ahead ($-1.3$).
+  \item $\alpha$: pinned at its $0.01$ floor in every step, so it does not really adapt.
+  \item Look-ahead radius: about $\times 1.8$ of the fixed set ($\approx 174~\mathrm{m}$ vs $97~\mathrm{m}$),
+        shorter in dense traffic.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\subsection{Results}
+Test: 300 fresh scenarios $\times$ 3 futures = 900 paired runs (identical traffic for every controller, Section~\ref{sec:identical}).
+\begin{center}
+\begin{tabular}{lcc}
+  \toprule
+  controller & success & progress \\
+  \midrule
+  v12 library set 2 (v13 base)        & 0.588 & 0.750 \\
+  trained fixed set (\texttt{v14/base}) & 0.646 & 0.780 \\
+  adaptive offsets only ($W = 0$)     & 0.621 & 0.751 \\
+  \textbf{adaptive policy} (\texttt{v14/adaptive}) & \textbf{0.714} & \textbf{0.812} \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+  \item Adaptive vs trained fixed set: $+6.9 \pm 2.2$ points (only adaptive succeeded 182, only fixed 120;
+        McNemar $p = 0.0004$).
+  \item The gain comes from adapting: the offsets alone are no better than the fixed set ($-2.4$, $p = 0.21$).
+\end{itemize}
+
+% ===========================================================================
+\section{Identical SUMO scenarios and futures (v14)}\label{sec:identical}
+All v14 comparisons (base vs adaptive, the numerator variants) rely on every candidate meeting
+\textbf{exactly the same traffic}. Three pieces make this possible: saved scenarios, futures, and
+repeatable SUMO runs.
+
+% ---------------------------------------------------------------------------
+\subsection{Scenarios: saved starting states}
+\begin{itemize}
+  \item Created once by \texttt{step1\_make\_scenarios.py}: traffic runs for $30~\mathrm{s}$, the car nearest
+        $x = 100~\mathrm{m}$ becomes the ego, and the full SUMO state is saved at that moment.
+  \item Per scenario \texttt{scenarios/sNNNNN/}: \texttt{state.xml} (all vehicles, routes, RNG state),
+        \texttt{ego.json} (the controller-held ego state $v_x, v_y$, heading), \texttt{meta.json} (seed, road length, start $x$).
+  \item Saved \textbf{before} the controller acts, so a scenario does not depend on the DIPF parameters or the
+        potential variant.
+  \item All v14 sub-folders share one scenario folder, \texttt{v14/base/scenarios}
+        (their \texttt{config.yaml} points \texttt{scenarios\_dir} to it).
+  \item Seed splits: train 0--99, validation 400--499, test 5000--5299 (never used for training or selection).
+  \item Guard: \texttt{meta.json} records the road length; every step refuses scenarios made on another road.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\subsection{Futures: several random continuations of one scenario}
+\begin{itemize}
+  \item A scenario fixes the \textbf{start}; the traffic after it is random (driver imperfection, speed deviation,
+        lane-change decisions).
+  \item Each scenario is reloaded with SUMO seeds $1, \dots, n$ (\texttt{--seed}): \textbf{future} $k$ = scenario
+        + seed $k$. Same start, different random continuation.
+  \item Futures per scenario: train $2$, validation $3$, test $3$ \;$\Rightarrow$\; one result is a success
+        \emph{rate}, not a single lucky or unlucky run.
+  \item \textbf{Common random numbers}: every candidate (parameter set or policy) is run on the same scenarios
+        $\times$ futures, so differences come from the controller, not from the traffic. Results are compared
+        run by run (paired McNemar test).
+\end{itemize}
+\begin{lstlisting}
+cmd = [sumo, "-n", NET_FILE.name, "--load-state", "scenarios/sNNNNN/state.xml",
+       "--step-length", "0.1", "--lateral-resolution", "0.25", ...]
+cmd += ["--seed", str(future)]                       (*\color{accent}\# future 1, 2, 3, ...*)
+\end{lstlisting}
+
+% ---------------------------------------------------------------------------
+\subsection{Repeatable runs: same scenario + same future $\Rightarrow$ same result}
+\paragraph{Problem 1: address-space randomisation (ASLR).} SUMO orders some internal work by memory address.
+Linux randomises memory addresses on every launch, so the same run (state, seed, commands) drew its random
+numbers in a different order each time: after one step two vehicles $300~\mathrm{m}$ apart had swapped their
+speed perturbations, and an identical run could end in success once and in a collision the next time.
+
+\begin{center}
+\begin{tabular}{lcc}
+  \toprule
+  10 repeats of the same run & default (ASLR on) & v14 (ASLR off) \\
+  \midrule
+  s00007, future 2 & 2 different outcomes & 1 \\
+  s00003, future 1 & 4 (2 successes, 2 collisions) & 1 \\
+  s00012, future 2 & 2 different outcomes & 1 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Fix: every SUMO process is started with address randomisation disabled (equivalent of \texttt{setarch -R}):
+\begin{lstlisting}
+def _kill_with_parent():               # preexec_fn: runs just before SUMO starts
+    libc = ctypes.CDLL("libc.so.6", use_errno=True)
+    libc.prctl(1, signal.SIGKILL)                                 # SUMO dies with its parent
+    ADDR_NO_RANDOMIZE = 0x0040000                                 (*\color{accent}\# no ASLR:*)
+    libc.personality(libc.personality(0xFFFFFFFF) | ADDR_NO_RANDOMIZE)
+\end{lstlisting}
+
+\paragraph{Problem 2: the result depended on the folder.} SUMO's memory layout also depends on the length of
+its command line and environment. The same parameters run from \texttt{v14/base} and \texttt{v14/adaptive} gave
+different outcomes (network path \texttt{.../base/...} vs \texttt{.../adaptive/...}, and the \texttt{PWD} variable).
+Fix: identical command line and environment from every folder:
+\begin{lstlisting}
+env = {k: v for k, v in os.environ.items() if k not in ("PWD", "OLDPWD", "_")}
+# relative "-n" path, run in the network's folder, fixed environment
+proc = subprocess.Popen(cmd + ["--remote-port", str(port)], preexec_fn=_kill_with_parent,
+                        cwd=str(NET_FILE.parent), env=env)
+\end{lstlisting}
+
+\paragraph{Checks.}
+\begin{itemize}
+  \item Repeating a run gives the identical outcome and progress (30 of 30 repeats).
+  \item The same parameters give identical results from \texttt{v14/base} and \texttt{v14/adaptive}.
+  \item The adaptive policy with all weights $0$ reproduces the trained fixed set run by run, and
+        \texttt{adaptive/step3} reproduces \texttt{base/step3} exactly (success $0.646$, progress $0.780$).
+  \item All runs must use the same SUMO binary: the scenarios were made with SUMO 1.27.1 (venv); SUMO 1.18
+        (\texttt{/usr/share/sumo}) cannot load them. \texttt{sumolib.checkBinary} follows \texttt{SUMO\_HOME}.
+\end{itemize}
+
+\end{document}

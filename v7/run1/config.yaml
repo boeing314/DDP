@@ -1,0 +1,303 @@
+# Central configuration for the SUMO network and Pure-DIPF controller.
+# The SUMO XML files are generated from this file by generate_sumo.py.
+# dipf_controller.py also reads this file, so simulation/controller geometry
+# should not be duplicated between Python and XML.
+
+simulation:
+  net_name: straight3lane
+  road_length_m: 1000.0
+  lanes: 3
+  lane_width_m: 3.5
+  edge_speed_mps: 20.0
+  begin: 0.0
+  end: 3600.0
+  step_length: 0.1
+  seed: 43
+
+ego:
+  id: ego
+  type_id: egoType
+  depart_time: 20.0
+  start_x: 2.5                   # body centre (departPos = start_x + length/2)
+  start_lane: 2
+  start_speed_mps: 13.54         # = measured avg entry speed of other vehicles (depart_speed: max, seeds 42/1/2, 900 s)
+  goal_x_offset_from_end_m: 15.0
+  goal_lane_index: 0
+  goal_tolerance_x: 1.5
+  goal_tolerance_y: 1.2
+  success_any_lane: true
+  length_m: 4.583
+  width_m: 1.748
+  max_speed_mps: 34.0            # ego max velocity (controller clamp + SUMO egoType maxSpeed)
+  max_accel_mps2: 3.2            # forward acceleration limit
+  max_decel_mps2: 4.5            # braking limit (same as the 'car' vehicle type)
+  max_lateral_accel_mps2: 3.0
+  max_lateral_speed_mps: 3.0
+  max_jerk_mps3: 10.0
+  max_lateral_jerk_mps3: 10.0
+  limit_acceleration: true       # false: no clamp on ax/ay (max_accel/decel/lateral_accel ignored)
+  limit_heading: true            # true: |vy| <= vx*tan(max_heading_deg) -- sideways speed in proportion to forward speed
+  max_heading_deg: 15.0          # max angle between the ego's velocity (= heading) and the road
+  limit_jerk: false               # false: no limit on how fast ax/ay change (max_*jerk ignored)
+
+dipf:
+  # Tuned (random + local search) with swap_wl_in_kprime: true,
+  # limit_acceleration/limit_jerk: true, use_dv_numerator: false,
+  # body-size road wall, ego.start_speed_mps = 13.54.
+  # 12 training seeds, chosen on 12 unseen seeds. Keep full precision --
+  # results are sensitive to tiny changes.
+  lambda_obs: 60.563783640829683        # was 97.19441074114307 (before w/l swap)
+  alpha: 5      # was 0.18386733512781048 (before w/l swap)
+  tau_x_base: 0.20135758641741253       # was 1.1700638231632874 (before w/l swap)
+  tau_y_base: 0.20371639393190305       # was 0.1368071423236023 (before w/l swap)
+
+  sx: 0.038052190282867706              # was 0.001153449787214083 (before w/l swap)
+  sy: 0.0
+  delta_lane: 4.8340208792701728        # was 20.767170143772937 (before w/l swap)
+
+  w_dest: 1.0
+  w_obs: 1.0
+  w_lane: 1.0
+
+  use_dv_numerator: false        # true: U_obs = lambda*(|Dv|/dv_max)/k'   false: U_obs = lambda/k'
+  dv_max: 10.0                   # only used when use_dv_numerator is true
+  swap_wl_in_kprime: true        # true: (1-l/|Dx|) / (1-w/|Dy|), wall at body contact; false: report form
+
+  obs_radius_ahead: 93.20815275376121   # was 200.0 (before w/l swap)
+  obs_radius_behind: 20.0
+  lateral_band: 8.0
+
+  grad_eps: 0.05
+  y_margin: 0.047743167397824936        # was 0.01 (before w/l swap)
+
+cost:
+  ttc_threshold_s: 3.0           # TTC at/above this counts as no collision risk
+  w_collision: 25.0
+  w_dist: 5.0
+  w_time: 1.0
+
+capture:
+  # capture_states.py: for each seed, run the episode once to find when the
+  # ego starts and when it finishes/crashes, then re-run it and save the full
+  # state at: start, n_between equally spaced times, and lead_time_s before
+  # the end.
+  v6_dir: ../../v6/run1         # optimised dipf.* params are read from here
+  seed_start: 0
+  seed_end: 49                  # inclusive
+  lead_time_s: 10.0             # last capture = end time - lead_time_s
+  n_between: 2                  # captures between start and the last one
+  output_dir: states
+  n_jobs: null                  # parallel seeds; null = cpu_count - 1
+
+episode_opt:
+  # build_episodes.py + optimize_episodes.py: every captured state is one
+  # episode; each episode gets its own differential evolution search
+  # (v4 algorithm) for the dipf.* keys below.
+  episodes_dir: episodes
+  results_dir: episode_opt_results
+  distance_m: 150.0             # success = ego covers this far from its start in the state
+  min_distance_m: 50.0          # skip episodes with less road left than this (near the road end)
+  max_time_s: 60.0              # timeout per evaluation (simulated seconds after the state)
+  eval_timeout_s: 300.0         # wall-clock limit per simulation subprocess
+  bounds:                       # same keys/ranges as v6 optimization.bounds
+    lambda_obs:       [0.1, 1000.0]
+    alpha:            [0.01, 100.0]
+    tau_x_base:       [0.05, 20.0]
+    tau_y_base:       [0.05, 20.0]
+    sx:               [0.0001, 10.0]
+    delta_lane:       [0.01, 1000.0]
+    obs_radius_ahead: [50.0, 200.0]
+    y_margin:         [0.01, 1.0]
+  pop_size: 10                  # Np (>= 6); evaluations per episode = pop_size * (1 + n_generations)
+  n_generations: 10
+  F: 0.5
+  CR: 0.9
+  patience: null                # stop an episode early after this many generations without improvement; null = off
+  include_baseline: true        # population member 0 = v6 best params (result never worse than v6)
+  rng_seed: 0
+  n_jobs: null                  # episodes optimised in parallel; null = cpu_count - 1
+
+stuck_detection:
+  speed_threshold_mps: 0.35
+  window_sec: 8.0
+  progress_threshold_m: 2.0
+
+movement:
+  move_match_threshold: 1000.0
+  move_keep_route: 2
+  lateral_resolution_m: 0.25
+  debug_interval_sec: 2.0
+
+vehicle_types:
+  bike:
+    length_m: 1.8
+    width_m: 0.6
+    gui_shape: motorcycle
+    color: "0,1,0"
+    accel_mps2: 3.0
+    decel_mps2: 7.0
+    max_speed_mps: 35.0
+    sigma: 0.65
+    min_gap_m: 0.383637
+    speed_dev: 0.45
+    speed_factor: 1.10
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.85
+    lc_assertive: 0.80
+    lc_impatience: 0.95
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.1
+    lc_speed_gain: 2.0
+    lc_keep_right: 0
+
+  auto:
+    length_m: 2.6
+    width_m: 1.4
+    gui_shape: passenger
+    color: "1,0.6,0"
+    accel_mps2: 2.2
+    decel_mps2: 5.0
+    max_speed_mps: 26.0
+    sigma: 0.334265
+    min_gap_m: 0.6
+    speed_dev: 0.35
+    speed_factor: 1.05
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.85
+    lc_assertive: 0.207888
+    lc_impatience: 0.800325
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.1
+    lc_speed_gain: 2.0
+    lc_keep_right: 0
+
+  car:
+    length_m: 5.0
+    width_m: 2.0
+    gui_shape: passenger
+    color: "1,1,0"
+    accel_mps2: 2.495427
+    decel_mps2: 4.5
+    max_speed_mps: 34.0
+    sigma: 0.45
+    min_gap_m: 0.3933065
+    speed_dev: 0.40
+    speed_factor: 1.00
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.55
+    lc_assertive: 0.35
+    lc_impatience: 0.65
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.15
+    lc_speed_gain: 1.8
+    lc_keep_right: 0
+
+  bus:
+    length_m: 12.0
+    width_m: 2.5
+    gui_shape: bus
+    color: "1,0,0"
+    accel_mps2: 1.2
+    decel_mps2: 4.0
+    max_speed_mps: 24.0
+    sigma: 0.423239
+    min_gap_m: 1.0
+    speed_dev: 0.281946
+    speed_factor: 0.90
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.950682
+    lc_assertive: 0.18
+    lc_impatience: 0.300214
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.2
+    lc_speed_gain: 1.2
+    lc_keep_right: 0
+
+  truck:
+    length_m: 12.0
+    width_m: 2.5
+    gui_shape: truck
+    color: "0,0,1"
+    accel_mps2: 1.0
+    decel_mps2: 4.0
+    max_speed_mps: 22.0
+    sigma: 0.50
+    min_gap_m: 1.2
+    speed_dev: 0.25
+    speed_factor: 0.85
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.85
+    lc_assertive: 0.12
+    lc_impatience: 0.35
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.2
+    lc_speed_gain: 1.2
+    lc_keep_right: 0
+
+  egoType:
+    length_m: 4.583
+    width_m: 1.748
+    gui_shape: passenger
+    color: "1,0,1"
+    accel_mps2: 3.0
+    decel_mps2: 6.0
+    max_speed_mps: 30.0
+    sigma: 0.0
+    min_gap_m: 0.5
+    speed_dev: 0.0
+    speed_factor: 1.0
+    lc_model: SL2015
+    lc_sublane: 8
+    lc_pushy: 0.0
+    lc_assertive: 0.0
+    lc_impatience: 0.0
+    lat_alignment: nice
+    lc_strategic: 0
+    lc_cooperative: 0.0
+    lc_speed_gain: 0.0
+    lc_keep_right: 0
+
+flows:
+  bike:
+    vehs_per_hour: 2160
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: max
+  auto:
+    vehs_per_hour: 1080
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: max
+  car:
+    vehs_per_hour: 1260
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: max
+  bus:
+    vehs_per_hour: 144
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: max
+  truck:
+    vehs_per_hour: 216
+    depart_lane: random
+    depart_pos: 15.0
+    depart_speed: max
+
+obstacle_effective_dimensions:
+  bike: {width_m: 0.8, length_m: 2.0}
+  auto: {width_m: 1.6, length_m: 3.0}
+  car: {width_m: 2.1, length_m: 5.0}
+  bus: {width_m: 2.7, length_m: 12.0}
+  truck: {width_m: 2.7, length_m: 12.0}
+  default: {width_m: 2.1, length_m: 5.0}

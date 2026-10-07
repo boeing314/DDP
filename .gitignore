@@ -1,23 +1,28 @@
-# Python virtual environment
+# Whitelist: only code, configs and PDFs go to GitHub.
+# Everything else (json, csv, xml, png, logs, databases, scenarios, ...) stays local.
+
+# 1. ignore every file
+*
+
+# 2. but look inside directories
+!*/
+
+# 3. allowed file types
+!*.py
+!*.sh
+!*.ipynb
+!*.yaml
+!*.yml
+!*.pdf
+!*.tex
+!*.md
+!requirements.txt
+!.gitignore
+
+# 4. never upload these folders, even if they contain allowed files
 venv/
 .venv/
-
-# Python cache
 __pycache__/
-*.pyc
-
-# IDE
 .vscode/
 .idea/
-
-# SUMO generated files
-*.log
-*.tripinfo.xml
-*.summary.xml
-*.fcd.xml
-*.emission.xml
-
-# Data files
-*.csv
-*.npz
-*.json
+.claude/

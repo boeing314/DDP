@@ -252,7 +252,7 @@
   $k$ already splits space into regions, so use \textbf{different $\tau$ per region}:
   {\small
   \[
-    K =
+    k =
     \begin{cases}
       0, & |\Delta y| < l \text{ and } |\Delta x| < w \\[4pt]
       \left(1-\dfrac{w}{|\Delta x|}\right)
@@ -266,8 +266,8 @@
     \end{cases}
   \]
   \[
-    \tau(\Delta x, \Delta v_x, \tau) = \frac{\tau}{2}\Big[(1+\alpha|\Delta v_x|)
-      + (\alpha|\Delta v_x|-1)\tanh(-\Delta x \Delta v_x)\Big]
+    \tau(\Delta x, \Delta v_x, \tau) = \frac{\tau}{2}\Big[(2+\alpha|\Delta v_x|)
+      + (\alpha|\Delta v_x|)\tanh(-\Delta x \Delta v_x)\Big]
   \]}
 \end{frame}
 
