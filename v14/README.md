@@ -9,7 +9,7 @@ specialist from the v12 library, never tuned as an all-round fixed set. v14 make
 | `adaptive/` | the v13 adaptive policy with **p0 = the trained base** (W = 0 reproduces it exactly) | `policy.json` |
 
 Same for both: scenarios (made once in `base/scenarios`, read by `adaptive/`), train/val/test seeds,
-futures, objective J = success + 0.1 progress, search budget (popsize 15 x 30 generations = 450
+futures, objective J = success + 0.1 progress, search budget (popsize 15 x 32 generations = 480
 candidates), validation-based selection, test on 300 fresh scenarios x 3 futures, repeatable runs
 (SUMO without ASLR). The obstacle-radius floor is 10 m in both (it was pinned at 30 m in v13).
 

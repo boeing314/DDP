@@ -3,7 +3,7 @@ Step 2 (v14/adaptive) -- train the adaptive-parameter policy with CMA-ES on clos
 The base parameters p0 are the TRAINED fixed set from v14/base (base_best.json), so x = 0 is the
 strong baseline itself and every gain comes from adapting.
 
-The policy (policy.py) turns 9 traffic features into multipliers for the adapted
+The policy (policy.py) turns 8 traffic features into multipliers for the adapted
 DIPF parameters every control step. Its weights x = (W, b) are searched with CMA-ES:
 
     J(x) = success rate + w_progress * mean progress

@@ -1,0 +1,286 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usetheme{default}
+\usefonttheme{professionalfonts}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+
+\definecolor{accent}{RGB}{0.40,0.07,0.07}
+\setbeamercolor{frametitle}{fg=accent}
+\setbeamercolor{title}{fg=accent}
+\setbeamercolor{structure}{fg=accent}
+\setbeamercolor{section in toc}{fg=accent}
+\setbeamerfont{frametitle}{series=\bfseries}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{caption}{\centering\insertcaption\par}
+\setbeamerfont{caption}{size=\footnotesize}
+\setbeamerfont{title}{size=\Huge,series=\bfseries}
+\setbeamerfont{subtitle}{size=\Large}
+
+% Slide number at the bottom right
+\setbeamertemplate{footline}{%
+  \hfill\usebeamercolor[fg]{page number in head/foot}%
+  \usebeamerfont{page number in head/foot}%
+  \insertframenumber\hspace{1.2em}\vspace{0.8em}}
+
+% Section divider slide
+\AtBeginSection[]{
+  \begin{frame}[plain]
+    \vfill\centering
+    {\usebeamercolor[fg]{title}\LARGE\bfseries\insertsectionhead\par}
+    \vfill
+  \end{frame}
+}
+
+% Empty space reserved for a figure: \figspace{width}{height}
+\newcommand{\figspace}[2]{%
+  {\color{gray!40}\fboxrule=0.4pt\fbox{\begin{minipage}[c][#2][c]{\dimexpr#1-2\fboxsep-0.8pt}\centering
+    \color{gray!60}\footnotesize Figure\end{minipage}}}}
+
+\title{Weekly Report }
+
+\author{Sep 25 -- Oct 09}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{Outline}
+  \begin{enumerate}[(A)]
+    \item SUMO implementation
+    \item Revisiting suggested changes in the potential
+    \item Adaptive control
+  \end{enumerate}
+\end{frame}
+
+% =====================================================================
+\section{SUMO Implementation}
+
+\begin{frame}{Constraints}
+  \centering
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Quantity} & \textbf{Bound} \\
+    \midrule
+    Longitudinal acceleration & $-9\ \text{m/s}^2 \;\le a_x \le\; 3.2\ \text{m/s}^2$ \\
+    Lateral acceleration      & $-3\ \text{m/s}^2 \;\le a_y \le\; 3\ \text{m/s}^2$ \\
+    Lateral speed             & $-3\ \text{m/s} \;\le v_y \le\; 3\ \text{m/s}$ \\
+    Heading                   & $|v_y| \le v_x \tan 15^\circ$ \\
+    Jerk                      & None \\
+    \bottomrule
+  \end{tabular}
+\end{frame}
+
+\begin{frame}{Margins}
+  \centering
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Item} & \textbf{Margin} \\
+    \midrule
+    Road edge         & Safety margin  \\
+    Wall continuation & $1/d^2$ then linear \\
+    $k'$              & $\left(1 - l/|\Delta x|\right) \ge 10^{-4}$ \\
+    $\tau$ floor      & $|\tau_x|,\ |\tau_y| \ge 10^{-3}$ \\
+    Sensing window    & $[-20\ \text{m},\ +r\ \text{ahead}]$ \\
+    Gradient step     & Central difference, $\varepsilon = 0.05$ \\
+    \bottomrule
+  \end{tabular}
+\end{frame}
+
+\begin{frame}{Handling of the angled case}
+  \centering
+  \renewcommand{\arraystretch}{1.4}
+  \begin{tabular}{lp{0.5\textwidth}}
+    \toprule
+    \textbf{Component} & \textbf{Handling} \\
+    \midrule
+    Obstacle--ego collision  & Not handled; based on a rectangle drawn using
+                               the centre of the front bumper \\
+    Road edge--ego collision & Not handled; $W \times L$ based on the body centre \\
+    Obstacle potential       & Not handled; $W \times L$ based on the body centre \\
+    \bottomrule
+  \end{tabular}
+  
+\end{frame}
+
+\begin{frame}{Lateral velocity}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Old SUMO code}
+      \begin{itemize}\small
+        \item $v_y$ re-read from SUMO every step
+        \item \texttt{getLateralSpeed} $= 0$ for the ego (\texttt{moveToXY})
+        \item $\Delta y =  a_y \Delta t^2$ 
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{New SUMO code}
+      \begin{itemize}\small
+        \item $v_y$ kept as controller state
+        \item $v_y = v_{y0} + a_y \Delta t$, 
+      \end{itemize}
+    \end{column}
+  \end{columns}
+ \end{frame}
+
+% =====================================================================
+\section{Revisiting Suggested Changes}
+
+\begin{frame}{Analysis through potential fields}
+  \vfill
+  \centering
+  \includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{image_2.png}
+  \vfill
+\end{frame}
+
+% =====================================================================
+\section{CMA-ES Optimisation}
+
+\begin{frame}{CMA-ES: the algorithm}
+  \begin{columns}[c]
+    \begin{column}{1.0\textwidth}
+      Keeps a \textbf{search cloud} $\mathcal{N}(m, \sigma^2 C)$ of parameter sets:
+      \begin{itemize}\small
+        \item centre $m$ \hfill 
+        \item size $\sigma$ \hfill 
+        \item shape $C$ \hfill 
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Every generation}
+      \begin{enumerate}\small
+        \item \textbf{Sample}: sample 15 parameter sets from the cloud
+        \item \textbf{Select}: Score each sets and keep the best 7
+        \item \textbf{Move}: centre $\leftarrow$ weighted average of the 7
+        \item \textbf{Update}: $\sigma$ and $C$ 
+      \end{enumerate}
+    \end{column}
+
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Differential Evolution (DE)}
+  \begin{columns}[c]
+    \begin{column}{1.0\textwidth}
+      Keeps a {population} of parameter sets $x_1, \dots, x_{N}$ spread over the search box
+      \vspace{0.4em}
+
+      \textbf{Every generation, for each member $x_i$}
+      \begin{enumerate}\small
+        \item \textbf{Mutate}: start at the best member, add scaled differences of random members
+              \[ v = x_{i} + F\,\big[(x_{r1} - x_{r2}) + (x_{r3} - x_{r4})\big] \]
+        \item \textbf{Crossover}: trial $u$ takes a block of coordinates from $v$, the rest from $x_i$
+        \item \textbf{Select}: score $u$ ; $u$ replaces $x_i$ {only if it is better}
+      \end{enumerate}
+      \vspace{0.3em}
+
+    \end{column}
+
+  \end{columns}
+\end{frame}
+
+
+
+\begin{frame}{Cost vs generation: base vs $|\Delta v|$ numerator}
+  \centering
+  \includegraphics[height=0.72\textheight]{val1.png}
+  \vspace{0.3em}
+
+  {\footnotesize Cost $= 1.1 - (\text{success})-0.1(\text{progress})$}
+\end{frame}
+
+% =====================================================================
+\section{Adaptive Control}
+
+\begin{frame}{Capturing of state}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{Surrounding_division.png}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{8 features}
+      \begin{enumerate}[i)]
+        \item TTC of vehicle ahead
+        \item TTC of vehicle front left/right
+        \item TTC of vehicles rear (all), sides
+        \item Gap front
+        \item Gap side
+        \item Road clearance
+        \item Speed
+        \item Density
+      \end{enumerate}
+    \end{column}
+  \end{columns}
+  \vspace{0.5em}
+  \[
+    f_t = [f_1, f_2, \ldots, f_8], \qquad f_i \in [0, 1]
+  \]
+\end{frame}
+
+\begin{frame}{Feature definitions}
+  \centering
+  \small
+  \renewcommand{\arraystretch}{1.35}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Feature} & \textbf{Definition} \\
+    \midrule
+    i)\ \ TTC ahead        & $1 - e^{-1/\mathrm{TTC}}$ \\
+    ii)\ TTC front side    & $1 - e^{-1/\mathrm{TTC}}$ \\
+    iii) TTC rear, sides   & $1 - e^{-1/\mathrm{TTC}}$ \\
+    iv)\ Gap front         & $e^{-g_x/20\,\text{m}}$ \\
+    v)\ \ Gap front side   & $e^{-g_x/20\,\text{m}}$ \\
+    vi)\ Road clearance    & $e^{-r/1\,\text{m}}$ \\
+    vii) Speed             & $v_x / 34$ \\
+    viii) Density          & $1 - e^{-n/10}$ \\
+    \bottomrule
+  \end{tabular}
+  \vspace{0.6em}
+
+  
+\end{frame}
+
+\begin{frame}{Adaptive policy}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \textbf{Policy:} $W \in \mathbb{R}^{4 \times 8}$, $b \in \mathbb{R}^{4}$ \quad (36 params)
+      \begin{align*}
+        z_t^* &= \mathrm{clip}\big(W f_t + b,\ -\ln 10,\ +\ln 10\big) \\[2pt]
+        z_t   &= z_{t-1} + \frac{\Delta t}{T}\,\big(z_t^* - z_{t-1}\big) \\[2pt]
+        p_t   &= p_0\, e^{z_t}
+      \end{align*}
+      \[
+        p = \big(\lambda_{obs},\ \alpha,\ \tau_y,\ \delta_{lane}\big)
+      \]
+    \end{column}
+    
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Learned policy weights}
+  \centering
+  \includegraphics[width=\textwidth]{image_1.png}
+  \vspace{0.4em}
+
+\end{frame}
+
+\begin{frame}{Training: base vs adaptive}
+  \centering
+  \includegraphics[height=0.72\textheight]{val2.png}
+  \vspace{0.3em}
+
+\end{frame}
+
+
+\end{document}

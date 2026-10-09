@@ -2,7 +2,7 @@
 v13 adaptive-parameter policy (gain scheduling).
 
 Every control step:
-    f_t  = features(encoding)                       9 dynamics features, each in [0, 1]
+    f_t  = features(encoding)                       8 dynamics features, each in [0, 1]
     z*_t = clip(W f_t + b, -c, c)                   one exponent per adapted parameter
     z_t  = z_{t-1} + min(1, dt/T) (z*_t - z_{t-1})  first-order smoothing (time constant T)
     p_t  = clamp(p0 * exp(z_t), limits)             p0 = base value of the parameter
@@ -13,7 +13,6 @@ Features (all mirror-invariant: swapping left and right does not change them, li
     ttc_front       1 - exp(-1/TTC) to the most critical vehicle in the ego's path ahead
     ttc_side_front  same, worst of front-left / front-right
     ttc_rear_side   same, worst of rear / rear-left / rear-right / alongside (closing from behind or the side)
-    drac_front      1 - exp(-DRAC/3 m/s^2): braking needed to avoid the vehicle ahead
     gap_front       exp(-gap/20 m) to the vehicle ahead (0 = nothing ahead)
     gap_side_front  same, closest of front-left / front-right
     tight_lateral   exp(-room/1 m), room = smallest lateral space (road edge or vehicle alongside)
@@ -27,14 +26,14 @@ import numpy as np
 
 from encoding import FEATURES as ENC
 
-FEATURES = ["ttc_front", "ttc_side_front", "ttc_rear_side", "drac_front", "gap_front", "gap_side_front",
+FEATURES = ["ttc_front", "ttc_side_front", "ttc_rear_side", "gap_front", "gap_side_front",
             "tight_lateral", "speed", "density"]
 _I = {name: i for i, name in enumerate(ENC)}
 V_MAX = 34.0
 
 
 def features(enc):
-    """80-value encoding (encoding.FEATURES order) -> the 9 policy features."""
+    """80-value encoding (encoding.FEATURES order) -> the 8 policy features."""
     e = lambda k: enc[_I[k]]                                    # noqa: E731
 
     def closeness(s):
@@ -48,7 +47,6 @@ def features(enc):
         1.0 - math.exp(-e("front_inv_ttc")),
         1.0 - math.exp(-max(e("front_left_inv_ttc"), e("front_right_inv_ttc"))),
         1.0 - math.exp(-max(e(f"{s}_inv_ttc") for s in ("rear", "rear_left", "rear_right", "left", "right"))),
-        1.0 - math.exp(-e("front_drac") / 3.0),
         closeness("front"),
         max(closeness("front_left"), closeness("front_right")),
         math.exp(-max(room, 0.0) / 1.0),

@@ -107,15 +107,15 @@ pipeline:
       alpha:            [0.01, 100.0]
       tau_y_base:       [0.01, 20.0]
       sx:               [1.0e-6, 10.0]
-      delta_lane:       [0.0001, 100.0]
+      delta_lane:       [0.0001, 1000.0]
       obs_radius_ahead: [10.0, 250.0]
       y_margin:         [0.001, 1.0]
 
   # ---- training (step 2): CMA-ES on closed-loop segment success -- SAME budget as v14/adaptive
   cmaes:
     sigma0: 0.15                 # in units of each parameter's log10 range (0.15 = 15% of the range)
-    popsize: 15                  # same as v14/adaptive (fixed so the budgets match: 15 x 30 = 450 candidates)
-    generations: 30
+    popsize: 15                  # same as v14/adaptive (fixed so the budgets match: 15 x 32 = 480 candidates)
+    generations: 32
     w_progress: 0.1              # J = success + w_progress * progress
     val_every: 4
     rng_seed: 0

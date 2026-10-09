@@ -45,14 +45,14 @@ ego:
 dipf:
   # v9 baseline. Starting values: the v6 DE optimum (tau_x_base now fixed).
   # optimize_de.py (v9) / optimize_optuna.py (v10) tune the keys in optimization.bounds.
-  lambda_obs: 0.011272475529718199     # was 0.41235729303613755 (before optimisation)
-  alpha: 0.3961303778534381             # was 1.0918822760135338 (before optimisation)
+  lambda_obs: 36.636078727483344   # tuned: v14/base/base_best.json
+  alpha: 3.770027946860112   # tuned: v14/base/base_best.json
   tau_x_base: 1.0                # FIXED (not tuned)
-  tau_y_base: 0.05278345640064817       # was 0.10841282892592682 (before optimisation)
+  tau_y_base: 0.16433608063412253   # tuned: v14/base/base_best.json
 
-  sx: 2.4407233859461716e-06            # was 0.00010090196246466377 (before optimisation)
+  sx: 0.027227806593010294   # tuned: v14/base/base_best.json
   sy: 0.0
-  delta_lane: 0.002076187143684305      # was 0.01 (before optimisation)
+  delta_lane: 23.390205932745662   # tuned: v14/base/base_best.json
 
   w_dest: 1.0
   w_obs: 1.0
@@ -62,12 +62,12 @@ dipf:
   dv_max: 10.0                   # only used when use_dv_numerator is true
   swap_wl_in_kprime: true        # true: (1-l/|Dx|) / (1-w/|Dy|), wall at body contact; false: report form
 
-  obs_radius_ahead: 70.45312244060881   # was 159.6767057724885 (before optimisation)
+  obs_radius_ahead: 55.274621681159836   # tuned: v14/base/base_best.json
   obs_radius_behind: 20.0
   lateral_band: 8.0
 
   grad_eps: 0.05
-  y_margin: 0.04332107137581335         # was 0.01 (before optimisation)
+  y_margin: 0.009446852253125944   # tuned: v14/base/base_best.json
 
 cost:
   ttc_threshold_s: 3.0           # TTC at/above this counts as no collision risk
@@ -94,22 +94,22 @@ pipeline:
   # ---- adaptive policy (policy.py): p_t = p0 * exp(z_t), z_t smoothed towards clip(W f_t + b, -clip, clip)
   adaptive:
     base_from: ../base/base_best.json   # p0 = the trained fixed set from v14/base (W = 0 reproduces it exactly)
-    params: [lambda_obs, tau_y_base, alpha, obs_radius_ahead]   # adapted every step (the rest stay at p0)
+    params: [lambda_obs, alpha, tau_y_base, delta_lane]   # adapted every step (the rest stay at p0)
     limits:                      # absolute ranges = the v14/base search ranges
       lambda_obs: [0.01, 10000.0]
       tau_y_base: [0.01, 20.0]
       alpha: [0.01, 100.0]
-      obs_radius_ahead: [10.0, 250.0]
+      delta_lane: [0.0001, 1000.0]
     clip: 2.302585               # |z| <= ln 10: each parameter stays within x0.1 .. x10 of p0
     smooth_s: 1.0                # time constant T of the smoothing (s)
     signs:                       # optional sign constraints on W: +1 -> w >= 0, -1 -> w <= 0
-      lambda_obs: {ttc_front: 1, ttc_side_front: 1, drac_front: 1}   # repulsion may only grow with danger
+      lambda_obs: {ttc_front: 1, ttc_side_front: 1}   # repulsion may only grow with danger
 
   # ---- training (step 2): CMA-ES on closed-loop segment success
   cmaes:
     sigma0: 0.5                  # initial step size (in exponent units: e^0.5 = x1.65 per unit feature)
-    popsize: 15                  # same as v14/base (15 x 30 = 450 candidates each)
-    generations: 30
+    popsize: 15                  # same as v14/base (15 x 32 = 480 candidates each)
+    generations: 32
     w_progress: 0.1              # J = success + w_progress * progress (progress breaks ties between failures)
     val_every: 4                 # score the search mean on the validation scenarios every n generations
     rng_seed: 0

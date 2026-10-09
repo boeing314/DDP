@@ -7,6 +7,7 @@
 \usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{array}
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage{hyperref}
@@ -151,6 +152,164 @@ ego_control_step.vy = vy_apply                                 (*\color{accent}\
 
 
 % ===========================================================================
+\section{CMA-ES: the optimiser used in v14}\label{sec:cmaes}
+Both the fixed base set (\texttt{v14/base}) and the adaptive policy (\texttt{v14/adaptive}) are trained with the
+Covariance Matrix Adaptation Evolution Strategy (CMA-ES, N.\ Hansen, \emph{The CMA Evolution Strategy: A
+Tutorial}, 2016). It is a derivative-free optimiser: it only needs a score for each candidate, which suits $J$
+(a closed-loop SUMO success rate, noisy and without a gradient).
+
+% ---------------------------------------------------------------------------
+\subsection{Idea}
+CMA-ES keeps a Gaussian \textbf{search distribution} $\mathcal{N}(m, \sigma^2 C)$ over the search vector
+$x \in \mathbb{R}^N$:
+\begin{itemize}
+  \item $m$ (mean): the current best guess, \emph{where} to search;
+  \item $\sigma$ (step size): \emph{how far} to search around $m$;
+  \item $C$ (covariance, $N \times N$): the \emph{shape} of the search, stretched along directions that worked.
+\end{itemize}
+Each generation samples $\lambda$ candidates, scores them, moves $m$ to a weighted average of the best $\mu$, and
+adapts $\sigma$ and $C$ from the step just taken. Two \textbf{evolution paths} remember the recent steps:
+$p_\sigma$ (for the step size) and $p_c$ (for the covariance).
+
+% ---------------------------------------------------------------------------
+\subsection{Constants}
+Only $\lambda$ (population size) and the start values $m_0, \sigma_0$ are chosen; everything else follows from
+$N$ and $\lambda$ (standard defaults):
+\begin{align*}
+  \mu &= \lfloor \lambda/2 \rfloor, &
+  w_i &= \frac{\ln(\mu + \tfrac12) - \ln i}{\sum_{j=1}^{\mu} \big(\ln(\mu + \tfrac12) - \ln j\big)},\quad i = 1, \dots, \mu, \\
+  \mu_{\mathrm{eff}} &= \Big(\sum_{i=1}^{\mu} w_i^2\Big)^{-1}, &
+  \chi_N &= \sqrt{N}\Big(1 - \tfrac{1}{4N} + \tfrac{1}{21N^2}\Big) \approx \mathbb{E}\|\mathcal{N}(0, I)\|, \\
+  c_\sigma &= \frac{\mu_{\mathrm{eff}} + 2}{N + \mu_{\mathrm{eff}} + 5}, &
+  d_\sigma &= 1 + 2\max\Big(0, \sqrt{\tfrac{\mu_{\mathrm{eff}} - 1}{N + 1}} - 1\Big) + c_\sigma, \\
+  c_c &= \frac{4 + \mu_{\mathrm{eff}}/N}{N + 4 + 2\mu_{\mathrm{eff}}/N}, &
+  c_1 &= \frac{2}{(N + 1.3)^2 + \mu_{\mathrm{eff}}}, \\
+  c_\mu &= \min\Big(1 - c_1,\; \frac{2(\mu_{\mathrm{eff}} - 2 + 1/\mu_{\mathrm{eff}})}{(N + 2)^2 + \mu_{\mathrm{eff}}}\Big). &&
+\end{align*}
+
+\begin{center}
+\small
+\begin{tabular}{lcc}
+  \toprule
+  & \texttt{v14/base} ($N = 7$) & \texttt{v14/adaptive} ($N = 36$) \\
+  \midrule
+  $\lambda$, $\mu$ & 15, 7 & 15, 7 \\
+  $w_1 \dots w_7$ & \multicolumn{2}{c}{$0.361,\ 0.237,\ 0.164,\ 0.113,\ 0.073,\ 0.040,\ 0.012$} \\
+  $\mu_{\mathrm{eff}}$ & 4.29 & 4.29 \\
+  $c_\sigma$, $d_\sigma$ & 0.386, 1.386 & 0.139, 1.139 \\
+  $c_c$ & 0.377 & 0.102 \\
+  $c_1$, $c_\mu$ & 0.0273, 0.0591 & 0.0014, 0.0035 \\
+  $\chi_N$ & 2.554 & 5.959 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+With $N = 36$ the covariance learns slowly ($c_1 + c_\mu \approx 0.005$ per generation): in 32 generations the
+adaptive search is mainly driven by $m$ and $\sigma$, while the 7-dimensional base search also reshapes $C$
+noticeably ($c_1 + c_\mu \approx 0.09$).
+
+% ---------------------------------------------------------------------------
+\subsection{Algorithm}
+\textbf{Initialise:} $m = m_0$, $\sigma = \sigma_0$, $C = I$, $p_\sigma = p_c = 0$, $g = 0$.
+
+\noindent\textbf{Repeat for every generation $g = 0, 1, 2, \dots$}
+\begin{enumerate}
+  \item \textbf{Sample.} Eigendecomposition $C = B D^2 B^{\top}$ ($B$: eigenvectors, $D$: square roots of the
+        eigenvalues). For $k = 1, \dots, \lambda$:
+        \[
+          z_k \sim \mathcal{N}(0, I), \qquad y_k = B D z_k \sim \mathcal{N}(0, C), \qquad x_k = m + \sigma\, y_k .
+        \]
+  \item \textbf{Evaluate.} Score every candidate, $f_k = f(x_k)$ (lower is better), and sort:
+        $f(x_{1:\lambda}) \le f(x_{2:\lambda}) \le \dots$, where $x_{i:\lambda}$ is the $i$-th best.
+  \item \textbf{Move the mean.} Weighted average of the $\mu$ best steps:
+        \[
+          \bar y_w = \sum_{i=1}^{\mu} w_i\, y_{i:\lambda}, \qquad m \leftarrow m + \sigma\, \bar y_w .
+        \]
+  \item \textbf{Step-size path} (in whitened coordinates, so it is independent of the shape $C$):
+        \[
+          p_\sigma \leftarrow (1 - c_\sigma)\, p_\sigma + \sqrt{c_\sigma (2 - c_\sigma)\, \mu_{\mathrm{eff}}}\;
+          C^{-1/2}\, \bar y_w, \qquad C^{-1/2} = B D^{-1} B^{\top}.
+        \]
+  \item \textbf{Stall indicator.} $h_\sigma = 1$ if
+        $\dfrac{\|p_\sigma\|}{\sqrt{1 - (1 - c_\sigma)^{2(g+1)}}} < \big(1.4 + \tfrac{2}{N + 1}\big)\, \chi_N$,
+        else $0$ (stops $p_c$ from growing while $\sigma$ is still increasing quickly).
+  \item \textbf{Covariance path:}
+        \[
+          p_c \leftarrow (1 - c_c)\, p_c + h_\sigma \sqrt{c_c (2 - c_c)\, \mu_{\mathrm{eff}}}\; \bar y_w .
+        \]
+  \item \textbf{Covariance update} (rank-one from the path, rank-$\mu$ from this generation's best steps):
+        \[
+          C \leftarrow (1 - c_1 - c_\mu)\, C
+            + c_1 \big( p_c p_c^{\top} + (1 - h_\sigma)\, c_c (2 - c_c)\, C \big)
+            + c_\mu \sum_{i=1}^{\mu} w_i\, y_{i:\lambda}\, y_{i:\lambda}^{\top},
+          \qquad C \leftarrow \tfrac12 (C + C^{\top}).
+        \]
+  \item \textbf{Step-size update:}
+        \[
+          \sigma \leftarrow \sigma \exp\!\Big( \frac{c_\sigma}{d_\sigma} \Big( \frac{\|p_\sigma\|}{\chi_N} - 1 \Big) \Big).
+        \]
+  \item $g \leftarrow g + 1$.
+\end{enumerate}
+
+\paragraph{What each update does.}
+\begin{itemize}
+  \item \textbf{Mean:} only the better half of the samples pulls $m$, the best one most ($w_1 = 0.36$). Because $m$
+        is an average of several candidates, one lucky score moves it little.
+  \item \textbf{Step size:} if successive mean steps point the same way, $\|p_\sigma\| > \chi_N$ and $\sigma$
+        grows (the search is too timid); if they cancel, $\|p_\sigma\| < \chi_N$ and $\sigma$ shrinks (the search is
+        circling an optimum). For random steps $\|p_\sigma\| \approx \chi_N$ and $\sigma$ stays.
+  \item \textbf{Covariance:} the rank-one term stretches $C$ along the direction the mean has been moving over
+        several generations ($p_c$); the rank-$\mu$ term stretches it along this generation's successful steps.
+        Correlated parameters (good sets have, e.g., more $\lambda_{obs}$ \emph{and} less $\tau_y$) are therefore
+        searched along their diagonal.
+\end{itemize}
+
+File: \texttt{v14/*/common.py} (\texttt{class CMAES}: \texttt{ask} = step 1, \texttt{tell} = steps 3--9).
+
+% ---------------------------------------------------------------------------
+\subsection{CMA-ES in v14}
+\begin{center}
+\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.8cm}>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{5.6cm}}
+  \toprule
+  & \texttt{v14/base} & \texttt{v14/adaptive} \\
+  \midrule
+  search vector $x$   & 7 DIPF parameters, log-scaled to $u \in [0,1]^7$ (below)
+                      & $W \in \mathbb{R}^{4 \times 8}$, $b \in \mathbb{R}^{4}$ (36 numbers), exponents of $p = p_0 e^{z}$ \\
+  start $m_0$         & v12 library set 2 & $W = 0,\ b = 0$ ($=$ the trained base) \\
+  $\sigma_0$          & $0.15$ (15\,\% of each log range) & $0.5$ ($e^{0.5} = \times 1.65$ per unit feature) \\
+  cost $f$            & $-J + 0.1 \cdot \text{distance of } u \text{ outside } [0,1]^7$ & $-J$ \\
+  bounds              & $u$ clipped to $[0,1]$ when simulated, penalty above steers $m$ back
+                      & sign constraints by reflection, $w \leftarrow |w|$ \\
+  \midrule
+  budget              & \multicolumn{2}{l}{$\lambda = 15$, 32 generations $\Rightarrow$ 480 candidates (same for both)} \\
+  one evaluation      & \multicolumn{2}{l}{$J$ on 100 train scenarios $\times$ 2 futures $=$ 200 SUMO runs} \\
+  \bottomrule
+\end{tabular}
+\end{center}
+with $J = \text{success rate} + 0.1 \cdot \text{mean progress}$ (progress $= 1$ for a success), and for the base
+\[
+  u_k = \frac{\log_{10} p_k - \log_{10} lo_k}{\log_{10} hi_k - \log_{10} lo_k}, \qquad
+  [lo_k, hi_k] = \text{search range of parameter } k,
+\]
+so one unit of $u$ spans the whole log range and $\sigma$ means the same for every parameter.
+
+\paragraph{Validation and selection.} CMA-ES only sees the training runs. Every 4 generations two points are scored
+on validation (100 scenarios $\times$ 3 futures):
+\begin{itemize}
+  \item the \textbf{mean} $m$ (a new point, never one of the sampled candidates);
+  \item the \textbf{best train candidate} so far, if a new one appeared.
+\end{itemize}
+The final set is the validated point (start set included) with the highest validation $J$; ties go to the earlier
+generation. In all three v14 runs this was the mean $m$: base generation 30 (validation $J = 0.950$),
+\texttt{base\_delta\_v} generation 32 ($0.875$), adaptive generation 12 ($0.978$). The best train candidates,
+picked as the highest of many noisy training scores, dropped back on validation (e.g.\ adaptive generation 15:
+train $J = 0.998$, validation $0.961$).
+
+\begin{center}
+  \includegraphics[width=0.85\textwidth]{validation_cost.png}
+\end{center}
+
+% ===========================================================================
 \section{The adaptive policy algorithm (v14)}
 The DIPF controller itself is unchanged: every acceleration is still the clamped negative gradient of the
 potential. The adaptive policy only \textbf{retunes four of the potential's parameters every $0.1~\mathrm{s}$}
@@ -255,6 +414,182 @@ Test: 300 fresh scenarios $\times$ 3 futures = 900 paired runs (identical traffi
   \item Adaptive vs trained fixed set: $+6.9 \pm 2.2$ points (only adaptive succeeded 182, only fixed 120;
         McNemar $p = 0.0004$).
   \item The gain comes from adapting: the offsets alone are no better than the fixed set ($-2.4$, $p = 0.21$).
+\end{itemize}
+
+% ===========================================================================
+\section{Constraints on the motion and on the potential (v14)}\label{sec:constraints}
+The controller has two kinds of limits: \textbf{hard limits on the motion} (applied after the gradient, they
+override the potential) and \textbf{built-in margins in the potential} (they shape the field, so the gradient
+already keeps the ego away from the limits). Values are for \texttt{v14/base} and \texttt{v14/adaptive}
+(\texttt{config.yaml}, \texttt{base\_best.json}); ego body $L \times W = 4.583 \times 1.748~\mathrm{m}$.
+
+% ---------------------------------------------------------------------------
+\subsection{Motion limits: acceleration, velocity, jerk}
+\begin{center}
+\small
+\begin{tabular}{llll}
+  \toprule
+  quantity & lower & upper & applied to \\
+  \midrule
+  longitudinal acceleration $a_x$ & $-9.0~\mathrm{m/s^2}$ (braking) & $+3.2~\mathrm{m/s^2}$ & $-\partial U/\partial x$ \\
+  lateral acceleration $a_y$      & $-3.0~\mathrm{m/s^2}$ & $+3.0~\mathrm{m/s^2}$ & $-\partial U/\partial y$ \\
+  longitudinal speed $v_x$        & $0$ (no reversing) & $34~\mathrm{m/s}$ & $v_x + a_x \Delta t$ \\
+  lateral speed $v_y$             & $-3.0~\mathrm{m/s}$ & $+3.0~\mathrm{m/s}$ & $v_y + a_y \Delta t$ \\
+  heading (see below)             & \multicolumn{2}{l}{$|v_y| \le v_x \tan 15^\circ$} & after the $v_y$ clamp \\
+  jerk $\dot a_x, \dot a_y$       & \multicolumn{2}{l}{\textbf{none}} & -- \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+  \item The braking limit $9~\mathrm{m/s^2}$ is SUMO's emergency deceleration; the throttle limit is asymmetric
+        ($3.2$). The flag \texttt{ego.limit\_acceleration: false} removes the acceleration clamp (speed limits stay).
+  \item The acceleration is clamped \textbf{per axis} (box, not a friction circle): the ego may brake at
+        $9$ and swerve at $3~\mathrm{m/s^2}$ at the same time.
+  \item \textbf{No jerk limit} (since v9): the acceleration is the clamped gradient of the current step and may
+        jump to any value in the box between two steps. The largest possible jump in one
+        $\Delta t = 0.1~\mathrm{s}$ step is therefore
+        $|\Delta a_x|/\Delta t = (3.2 + 9.0)/0.1 = 122~\mathrm{m/s^3}$ and
+        $|\Delta a_y|/\Delta t = 6/0.1 = 60~\mathrm{m/s^3}$ (comfort limits are typically $1$--$2~\mathrm{m/s^3}$).
+        The previous acceleration is stored (\texttt{prev\_ax}, \texttt{prev\_ay}) but not used.
+  \item The only smoothing in the loop is on the \textbf{parameters} (adaptive policy, Section~\ref{sec:constraints-adaptive}),
+        not on the acceleration.
+\end{itemize}
+
+File: \texttt{v14/*/dipf\_controller.py} (\texttt{ego\_control\_step}).
+\begin{lstlisting}
+ax = clamp(-dUx, -EGO_D_MAX, EGO_A_MAX)            # [-9.0, +3.2]
+ay = clamp(-dUy, -EGO_AY_MAX, EGO_AY_MAX)          # [-3.0, +3.0]
+# No jerk limit (v9): the commanded acceleration is the clamped gradient.   (*\color{codebad}\# no rate limit*)
+vx_apply = clamp(vx + ax*dt, 0.0, EGO_MAX_SPEED)   # [0, 34]
+vy_apply = clamp(vy + ay*dt, -EGO_VY_MAX, EGO_VY_MAX)
+vy_cap   = vx_apply * TAN_MAX_HEADING               # tan(15 deg)
+vy_apply = clamp(vy_apply, -vy_cap, vy_cap)
+\end{lstlisting}
+
+% ---------------------------------------------------------------------------
+\subsection{Angle constraints}
+\paragraph{Heading limit.} The ego's heading follows its velocity, $\theta = \arctan(v_y / v_x)$, and is passed to
+\texttt{moveToXY}. It is capped at $\theta_{max} = 15^\circ$ by limiting the lateral speed:
+\[
+  |v_y| \le v_x \tan 15^\circ = 0.268\, v_x .
+\]
+\begin{itemize}
+  \item Ties lateral to forward motion: no sideways sliding at low speed; at standstill $v_y = 0$
+        (the heading keeps its last value).
+  \item The $3~\mathrm{m/s}$ lateral cap is the binding one only above $v_x = 3/0.268 = 11.2~\mathrm{m/s}$;
+        below that the heading cap is stricter (e.g.\ $v_x = 5~\mathrm{m/s} \Rightarrow |v_y| \le 1.34~\mathrm{m/s}$).
+\end{itemize}
+
+\paragraph{Angled body in the lane potential.} A turned ego is wider across the road. The lane walls use its
+lateral half-extent at the current heading:
+\[
+  h(\theta) = \tfrac{L}{2}|\sin\theta| + \tfrac{W}{2}|\cos\theta|
+\]
+\begin{center}
+\begin{tabular}{ccccc}
+  \toprule
+  $\theta$ & $0^\circ$ & $5^\circ$ & $10^\circ$ & $15^\circ$ (max) \\
+  \midrule
+  $h(\theta)$ & $0.874$ m & $1.070$ m & $1.259$ m & $1.437$ m \\
+  \bottomrule
+\end{tabular}
+\end{center}
+So a lane change towards the edge moves the wall up to $0.56~\mathrm{m}$ inwards. Note: the hard road-departure
+check (\texttt{ego\_within\_road}) uses the unturned $W/2$, so the potential is the more conservative of the two.
+
+\paragraph{Region angle in the obstacle potential.} $k'$ switches between its longitudinal and lateral form along the
+diagonal of the combined box ($w = (W_{ego} + w_{eff})/2$, $l = (L_{ego} + l_{eff})/2$):
+\[
+  k' = \begin{cases}
+    \big(1 - \tfrac{l}{|\Delta x|}\big)\sqrt{\big(\tfrac{\Delta x}{\tau_x}\big)^2 + \big(\tfrac{\Delta y}{\tau_y}\big)^2}
+      & |\Delta y| \le \tfrac{w}{l}|\Delta x| \quad (\text{ahead / behind}) \\[4pt]
+    \big(1 - \tfrac{w}{|\Delta y|}\big)\sqrt{\cdots} & \text{otherwise} \quad (\text{beside})
+  \end{cases}
+\]
+i.e.\ the boundary is the corner direction $\arctan(w/l)$ from the road axis: $21.2^\circ$ (bike),
+$23.8^\circ$ (auto), $21.9^\circ$ (car), $15.0^\circ$ (bus, truck). In each region the singular wall sits where the
+two bodies touch on that axis.
+
+% ---------------------------------------------------------------------------
+\subsection{Margins built into the potentials}
+\begin{center}
+\small
+\begin{tabular}{p{3.3cm}p{5.6cm}p{4.6cm}}
+  \toprule
+  margin & definition & value (v14) \\
+  \midrule
+  road edge $y_{margin}$ & lane wall singular where body edge $+ \,y_{margin}$ touches the road edge
+                        & $5.4~\mathrm{mm}$ (trained; search range $1~\mathrm{mm}$--$1~\mathrm{m}$) \\
+  heading half-extent   & $h(\theta)$ instead of $W/2$ & $+0$ to $+0.56~\mathrm{m}$ \\
+  obstacle padding      & effective size used in $k'$ $>$ the SUMO size & see table below \\
+  wall continuation     & below $d_0 = 1~\mathrm{cm}$ the $1/d^2$ lane wall continues as a steep straight line
+                        & still pushes back after a step overshoots \\
+  $k'$ floor            & near the obstacle wall $(1 - l/|\Delta x|) \ge 10^{-4}$; inside contact it is set to $0.1$
+                        & $U_{obs} \le 10^{4}\,\lambda_{obs}/\sqrt{\cdots}$, finite \\
+  $\tau$ floor          & $|\tau_x|, |\tau_y| \ge 10^{-3}$ & no division by $0$ \\
+  sensing window        & obstacles counted only within $[-20, +r_{ahead}]~\mathrm{m}$ and $|\Delta y| \le 8~\mathrm{m}$
+                        & $r_{ahead} = 97.5~\mathrm{m}$ (base), $10$--$250~\mathrm{m}$ (adaptive) \\
+  gradient step         & central difference, $\epsilon = 0.05~\mathrm{m}$ & -- \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Obstacle padding} (\texttt{obstacle\_effective\_dimensions}). Extra clearance at which the $k'$ wall sits
+beyond actual body contact, per side:
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+  \toprule
+  type & SUMO size $W \times L$ & effective $w_{eff} \times l_{eff}$ & lateral margin & longitudinal margin \\
+  \midrule
+  bike       & $0.6 \times 1.8$  & $0.8 \times 2.0$  & $0.10$ m & $0.10$ m \\
+  auto       & $1.4 \times 2.6$  & $1.6 \times 3.0$  & $0.10$ m & $0.20$ m \\
+  car        & $2.0 \times 5.0$  & $2.1 \times 5.0$  & $0.05$ m & $0$ \\
+  bus, truck & $2.5 \times 12.0$ & $2.7 \times 12.0$ & $0.10$ m & $0$ \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Lane wall position.} Driving straight, the ego centre is confined to
+$|y| < 5.25 - 0.874 - 0.0054 = 4.37~\mathrm{m}$ by the walls (lane centres at $0, \pm 3.5~\mathrm{m}$).
+The wall strength $\delta_{lane} = 100$ sits at the upper end of its search range.
+
+\paragraph{Hard limits behind the margins.} The margins are soft (a strong enough pull can cross them within one
+$0.1~\mathrm{s}$ step). What is enforced:
+\begin{itemize}
+  \item Road: any part of the body off the road $\Rightarrow$ collision (position is never clamped back).
+  \item Vehicles: SUMO's own collision detector on the actual sizes.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\subsection{Limits on the adapted parameters}\label{sec:constraints-adaptive}
+The adaptive policy changes four potential parameters, each kept within three nested limits:
+\begin{enumerate}
+  \item \textbf{Relative}: $|z| \le \ln 10$ $\Rightarrow$ $p \in [\,0.1\,p_0,\; 10\,p_0\,]$.
+  \item \textbf{Absolute}: clamp to the \texttt{v14/base} search range.
+  \item \textbf{Rate}: smoothing with $T = 1~\mathrm{s}$ moves $z$ at most
+        $\tfrac{\Delta t}{T} \cdot 2\ln 10 = 0.46$ per step $\Rightarrow$ a parameter changes by at most
+        $\times 1.58$ (or $\div 1.58$) per $0.1~\mathrm{s}$.
+\end{enumerate}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+  \toprule
+  parameter & $p_0$ (base) & $\times 0.1 \dots \times 10$ & absolute limits & effective range \\
+  \midrule
+  $\lambda_{obs}$              & $190.7$  & $19.1$ -- $1907$    & $0.01$ -- $10^4$ & $19.1$ -- $1907$ \\
+  $\tau_y$                     & $0.378$  & $0.038$ -- $3.78$   & $0.01$ -- $20$   & $0.038$ -- $3.78$ \\
+  $\alpha$                     & $0.0209$ & $0.0021$ -- $0.209$ & $0.01$ -- $100$  & $\mathbf{0.01}$ -- $0.209$ \\
+  $r_{ahead}$ (m)              & $97.5$   & $9.75$ -- $975$     & $10$ -- $250$    & $\mathbf{10}$ -- $\mathbf{250}$ \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+  \item Bold: the absolute limit is the binding one. $\alpha$ is pinned at its $0.01$ floor in practice.
+  \item Sign constraint: the weights from \texttt{ttc\_front}, \texttt{ttc\_side\_front}, \texttt{drac\_front}
+        to $\lambda_{obs}$ are $\ge 0$ (enforced by reflection, $w \leftarrow |w|$).
+  \item Fixed, not adapted: $s_x$, $\delta_{lane}$, $y_{margin}$, $\tau_x = 1$, $r_{behind} = 20~\mathrm{m}$,
+        lateral band $8~\mathrm{m}$, the motion limits above. The policy cannot loosen any motion limit.
 \end{itemize}
 
 % ===========================================================================

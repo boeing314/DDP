@@ -31,7 +31,7 @@ USE_GUI_AFTER_HEADLESS = False
 
 # Batch settings
 N_RUNS = 100
-SEEDS = list(range(42, 42 + N_RUNS))
+SEEDS = list(range(47, 42 + N_RUNS))
 
 # Output folders
 ANALYSIS_DIR = OUT_DIR / "Pure_DIPF"
@@ -78,7 +78,7 @@ EGO_ID = "ego"
 EGO_DEPART_TIME = 20.0
 EGO_START_X = 1.0
 
-EGO_START_LANE = 2
+EGO_START_LANE = 1
 GOAL_LANE_INDEX = 0
 
 # Updated ego size

@@ -14,7 +14,7 @@ So every vehicle repels at least as in ../base (numerator >= 1), and approaching
 (`config.yaml -> dipf.approach_numerator: true`, `dipf.dv_max: 34.0`.)
 
 Everything else is the same as ../base: scenarios (`../base/scenarios`), seeds, futures, objective, CMA-ES over all
-7 parameters from v12 set 2, budget (15 x 30), validation-based selection, test set.
+7 parameters from v12 set 2, budget (15 x 32), validation-based selection, test set.
 
 ```bash
 python step2_train_base.py --n-jobs 7       # ~6 h, resumable; --finish stops early

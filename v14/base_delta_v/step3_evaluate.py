@@ -1,11 +1,11 @@
 """
 Step 3 (v14/base) -- test the trained fixed set on FRESH scenarios (pipeline.seeds.test).
 
-    start set     v12 library set 2 (the search start = the v13 base)
+    start set     pipeline.base_search.start_params (the search start: this folder's previous best, old tau)
     trained base  base_best.json (the strong fixed baseline v14/adaptive builds on)
 
-    v13 adaptive  (optional, --v13-policy) the v13 policy; it was trained on top of v12 set 2, which
-                  is exactly the start set here, so it runs as in v13 -- on the same runs as the others
+    v13 adaptive  (optional, --v13-policy) the v13 policy; it was trained on top of v12 set 2 (no longer
+                  the start set here); it runs as in v13 -- on the same runs as the others
 
 Runs are exactly repeatable, so v14/adaptive's step 3 reproduces the "trained base" numbers.
 
@@ -58,7 +58,7 @@ def main():
     pa, pb = per_scenario(trained), per_scenario(start)
     d = np.array([pa[s] - pb[s] for s in test])
     print(f"done [{time.time() - t0:.0f}s]\n")
-    print(f"start set (v12 set 2): success {ss['success']:.3f}  progress {ss['progress']:.3f}")
+    print(f"start set            : success {ss['success']:.3f}  progress {ss['progress']:.3f}")
     print(f"trained base         : success {st['success']:.3f}  progress {st['progress']:.3f}")
     print(f"trained - start: {d.mean():+.3f} +- {d.std(ddof=1) / math.sqrt(len(d)):.3f} (SE); runs only trained succeeded "
           f"{b}, only start {c} -> McNemar p = {mcnemar(b, c):.3g}")

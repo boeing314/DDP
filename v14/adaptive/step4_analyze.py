@@ -64,14 +64,22 @@ def fig_training(state, path):
     plt.close()
 
 
+FEATURE_LABELS = {"ttc_front": "TTC ahead", "ttc_side_front": "TTC front side",
+                  "ttc_rear_side": "TTC rear, sides", "gap_front": "Gap front",
+                  "gap_side_front": "Gap front side", "tight_lateral": "Road clearance",
+                  "speed": "Speed", "density": "Density"}
+
+
 def fig_weights(policy, path):
     W, b = np.array(policy["W"]), np.array(policy["b"])
+    feats = policy.get("features", pol.FEATURES)
     M = np.hstack([W, b[:, None]])
     lim = max(0.5, float(np.abs(M).max()))
     plt.figure(figsize=(10, 2.6 + 0.4 * len(policy["params"])))
     plt.imshow(M, cmap="RdBu_r", vmin=-lim, vmax=lim, aspect="auto")
     plt.colorbar(label="log-multiplier (e^w per unit feature)")
-    plt.xticks(range(M.shape[1]), pol.FEATURES + ["bias b"], rotation=35, ha="right", fontsize=8)
+    plt.xticks(range(M.shape[1]), [FEATURE_LABELS.get(f, f) for f in feats] + ["bias b"], rotation=35, ha="right",
+               fontsize=8)
     plt.yticks(range(M.shape[0]), policy["params"], fontsize=9)
     for i in range(M.shape[0]):
         for j in range(M.shape[1]):

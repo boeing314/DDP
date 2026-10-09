@@ -5,7 +5,8 @@ Compared on the same scenarios x futures (runs are exactly repeatable, so every 
 meets identical traffic randomness):
     base            the TRAINED fixed set from v14/base (= the adaptive policy with x = 0);
                     reproduces v14/base step 3 exactly
-    v12 set 2       the fixed set v14/base started from (the v13 base)
+    base start      the fixed set v14/base's search started from (base_best.json -> start:
+                    the previous v14/base best from 'v14 copy', old tau)
     adaptive        the trained policy (policy.json)
     bias part       the trained policy without its feature weights (W = 0, same b):
                     a fixed re-tuning; adaptive vs bias part = what the ADAPTATION adds
@@ -65,7 +66,7 @@ def main():
     pj = json.loads((BASE_DIR / args.policy).read_text())
     pols = {"base": None, "adaptive": pj["policy"], "bias part": bias_part(pj["policy"])}
     start = json.loads((BASE_DIR / ADA["base_from"]).read_text())["start"]["params"]
-    pols["v12 set 2"] = ("fixed", start)
+    pols["base start"] = ("fixed", start)
     bo = BASE_DIR / "policy_biasonly.json"
     if bo.exists() and not pj.get("bias_only"):
         pols["bias-only (trained)"] = json.loads(bo.read_text())["policy"]
@@ -91,13 +92,13 @@ def main():
         print(f"{k:<22s} {s['success']:8.3f} {s['progress']:9.3f}")
     comps = {}
     for a, b in [("adaptive", "base"), ("adaptive", "bias part"), ("adaptive", "bias-only (trained)"),
-                 ("bias part", "base"), ("base", "v12 set 2"), ("adaptive", "v12 set 2")]:
+                 ("bias part", "base"), ("base", "base start"), ("adaptive", "base start")]:
         if a in runs and b in runs:
             c = comps[f"{a} vs {b}"] = paired(runs[a], runs[b])
             print(f"{a} vs {b}: {c['mean_diff']:+.3f} +- {c['se']:.3f} (SE) per scenario; runs only {a} succeeded "
                   f"{c['only_a']}, only {b} {c['only_b']} -> McNemar p = {c['mcnemar_p']:.3g}")
     print("\nReading: 'adaptive vs base' = what adapting adds on top of the best fixed set found with the same"
-          "\nsearch budget (the main result); 'base vs v12 set 2' = what training the fixed set gained;"
+          "\nsearch budget (the main result); 'base vs base start' = what training the fixed set gained;"
           "\n'adaptive vs bias part' = the adapting part of the policy itself.")
 
     ps = {k: per_scenario(r) for k, r in runs.items()}

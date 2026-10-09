@@ -560,14 +560,16 @@ def move_ego(x_center, y_center, lane_i_hint, angle_deg):
 # PURE-DIPF POTENTIAL FIELD
 # =============================================================================
 
-def tau_component(delta_v, base):
+def tau_component(delta_pos, delta_v, base):
     """
-    tau(D., Dv) = base . [(1 + alpha*Dv) + (alpha*Dv - 1) * tanh(Dv)] / 2
+    tau(D., Dv, base) = base/2 . [ (2 + alpha*|Dv|) + alpha*|Dv| * tanh(-D. * Dv) ]
 
-    Per the supplied formula, the tanh argument is the velocity term Dv
-    itself (not delta_pos * delta_v).
+    D. and Dv are obstacle minus ego, so D.*Dv < 0 while the gap is closing:
+    tanh -> +1 gives tau = base*(1 + alpha*|Dv|) (larger tau, stronger field),
+    tanh -> -1 (gap opening) gives tau = base.
     """
-    scale = 0.5 * ((2.0 + ALPHA * delta_v) + (ALPHA * delta_v - 0.0) * math.tanh(delta_v))
+    adv = ALPHA * abs(delta_v)
+    scale = 0.5 * ((2.0 + adv) + adv * math.tanh(-delta_pos * delta_v))
     return base * scale
 
 
@@ -584,8 +586,8 @@ def k_prime(dx, dy, dvx, dvy, w_eff, l_eff):
     if SWAP_WL:
         w_eff, l_eff = l_eff, w_eff
 
-    tau_x = tau_component(dvx, TAU_X_BASE)
-    tau_y = tau_component(dvy, TAU_Y_BASE)
+    tau_x = tau_component(dx, dvx, TAU_X_BASE)
+    tau_y = tau_component(dy, dvy, TAU_Y_BASE)
 
     eps = 1e-3
     tau_x = tau_x if abs(tau_x) > eps else eps

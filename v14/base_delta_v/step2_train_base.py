@@ -9,7 +9,7 @@ and validation-based selection as the adaptive policy:
                over the train scenarios x futures 1..n (takeover -> x = 400 m), fixed parameters theta
 
 Search space: u in [0,1]^7, theta_k = 10^(lo_k + u_k (hi_k - lo_k)) (log-uniform ranges).
-CMA-ES starts at the start set (v12 library set 2) with sigma0 in units of the ranges.
+CMA-ES starts at the start set (pipeline.base_search.start_params) with sigma0 in units of the ranges.
 Samples outside [0,1] are clipped to the box (and lightly penalised so the search stays inside).
 
 Every val_every generations the search mean and the best train candidate are scored on
@@ -118,7 +118,7 @@ def main():
             es.load(st["cmaes"])
             print(f"Resumed after generation {es.gen}: best train {fmt(st['best_train']['train'])}", flush=True)
         else:
-            print("Start set (v12 set 2) on train and validation ...", flush=True)
+            print("Start set (pipeline.base_search.start_params) on train and validation ...", flush=True)
             st = {"fingerprint": fp, "start_train": summarize(evaluate(pool, [None], train, FUT["train"])[0]),
                   "history": [], "checkpoints": []}
             st["start_val"] = summarize(evaluate(pool, [None], val, FUT["val"])[0])
