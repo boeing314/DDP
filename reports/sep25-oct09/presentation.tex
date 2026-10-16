@@ -45,7 +45,7 @@
 
 \title{Weekly Report }
 
-\author{Sep 25 -- Oct 09}
+\author{Sep 25 -- Oct 16}
 \date{}
 
 \begin{document}
@@ -56,27 +56,193 @@
 
 \begin{frame}{Outline}
   \begin{enumerate}[(A)]
+    \item Suggested changes in the DIPF
     \item SUMO implementation
-    \item Revisiting suggested changes in the potential
-    \item Adaptive control
+    \item Adaptive model
   \end{enumerate}
+\end{frame}
+
+% =====================================================================
+\section{Suggested Changes in DIPF}
+
+
+% ---------------------------------------------------------------------
+\subsection{$\tau$ switch}
+
+\begin{frame}{Change I : sensitivity to $\tau_x, \tau_y$}
+  \centering
+  \includegraphics[width=0.8\textwidth]{../sep18-25/tau_sensitivity.png}
+  \begin{itemize}\small
+    \item The shape of the potential is highly sensitive to $\tau_y/\tau_x$.
+    \item If $\tau_y \ll \tau_x$ the $\Delta y^2/\tau_y^2$ term dominates $\Rightarrow$
+          \textbf{no lateral force} ahead and behind; same on the sides when $\tau_y/\tau_x \gg 1$.
+    \item \textbf{Fix:} switch $\tau$ with region of $k$
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{$\tau$ switch: case 1}
+  \centering
+  \includegraphics[height=0.8\textheight]{tau_1.png}\par
+  {\footnotesize Original (left) vs modified (right)}
+\end{frame}
+
+\begin{frame}{$\tau$ switch: case 2}
+  \centering
+  \includegraphics[height=0.8\textheight]{tau_2.png}\par
+  {\footnotesize Original (left) vs modified (right)}
+\end{frame}
+
+\begin{frame}{$\tau$ switch: case 3}
+  \centering
+  \includegraphics[height=0.8\textheight]{tau_3.png}\par
+  {\footnotesize Original (left) vs modified (right)}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\subsection{Modified $\tau$}
+
+\begin{frame}{Change II: reformulating $\tau$}
+  \begin{columns}[c]
+    \begin{column}{0.45\textwidth}
+      \centering
+      \includegraphics[width=0.9\linewidth]{../sep18-25/vel_original.png}\par
+      {\footnotesize Force vs $\Delta v_x$: kink from the $\tau$ term}
+    \end{column}
+    \begin{column}{0.53\textwidth}
+      Current form:
+      {\small
+      \[
+        \begin{aligned}
+        \tau = \Big[&(1+\alpha|\Delta v_x|) \\
+               &+ (\alpha|\Delta v_x|-1)\tanh(-\Delta x \Delta v_x)\Big]\,\tau_x
+        \end{aligned}
+      \]}
+      \begin{itemize}\small
+        \item Approaching gives $\tau = \alpha\tau_x|\Delta v_x|$, which can be \emph{smaller} than $\tau_x$
+        \item \textbf{Fix:} Minimum value of $\tau$ when vehicles approaches should be $\tau_x$:
+      \end{itemize}
+      \[
+        \tau =
+        \begin{cases}
+          \tau_x & \text{receding} \\
+          \tau_x(1+\alpha|\Delta v_x|) & \text{approaching}
+        \end{cases}
+      \]
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Modified $\tau$: case 1}
+  \centering
+  \includegraphics[height=0.8\textheight]{vel_1.png}\par
+  {\footnotesize Original (left) vs modified (right)}
+\end{frame}
+
+\begin{frame}{Modified $\tau$: case 2}
+  \centering
+  \includegraphics[height=0.8\textheight]{vel_2.png}\par
+  {\footnotesize Original (left) vs modified (right)}
+\end{frame}
+
+\begin{frame}{Modified $\tau$: case 3}
+  \centering
+  \includegraphics[height=0.8\textheight]{vel_3.png}\par
+  {\footnotesize Original (left) vs modified (right)}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\subsection{Relative velocity term}
+
+\begin{frame}{Change III: relative velocity term}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[width=0.9\linewidth]{../sep18-25/base_vel.png}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \[
+        U_{obst} = \frac{\lambda\,(|\Delta v| / \Delta v_{max})}{k}
+      \]
+      \begin{itemize}\small
+        \item \textbf{Fix:} $\;U(k) = \lambda / k$.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Relative velocity term: case 1}
+  \centering
+  \includegraphics[height=0.8\textheight]{rel_1.png}\par
+  {\footnotesize Original (left) vs modified (right)}
+\end{frame}
+
+\begin{frame}{Relative velocity term: case 2}
+  \centering
+  \includegraphics[height=0.8\textheight]{rel_2.png}\par
+  {\footnotesize Original (left) vs modified (right)}
+\end{frame}
+
+\begin{frame}{Relative velocity term: case 3}
+  \centering
+  \includegraphics[height=0.8\textheight]{rel_3.png}\par
+  {\footnotesize Original (left) vs modified (right)}
 \end{frame}
 
 % =====================================================================
 \section{SUMO Implementation}
 
-\begin{frame}{Constraints}
+\begin{frame}{Step 1: Change of frame}
+  Rotate the request onto the car's heading, then scale it onto the grip ellipse.
+  \begin{align*}
+    a_{lon} &= \cos\psi\, a_x + \sin\psi\, a_y \\
+    a_{lat} &= -\sin\psi\, a_x + \cos\psi\, a_y
+  \end{align*}
+  \[
+    \left(\frac{a_{lon}}{A_{lon}}\right)^2 + \left(\frac{a_{lat}}{A_{lat}}\right)^2 \le 1
+  \]
+  \[
+    A_{lon} = \begin{cases} a_{acc} & a_{lon} \ge 0 \\ a_{brake} & a_{lon} < 0 \end{cases}
+  \]
+  \begin{itemize}\small
+    \item Scale as needed if term is greater than 1.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Steps 2,3: speed limit and jerk limits}
+  \begin{columns}[c]
+    \begin{column}{0.75\textwidth}
+      \begin{align*}
+        a_{lon} &\le \frac{v_{limit} - v}{\tau_v} \\[6pt]
+        \big|a_{lon}^{k+1} - a_{lon}^{k}\big| &\le j\,\Delta t
+      \end{align*}
+    \end{column}
+   
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Step 4: Curvature limits}
+  \begin{align*}
+    \kappa &= \frac{a_{lat}}{v^2} \\
+    |\kappa| &\le \min\!\left(\kappa_{max},\ \frac{A_{lat}}{v^2}\right) \\
+    |\Delta\kappa| &\le \min\!\left(\dot{\kappa}_{max},\ \frac{j_{lat}}{v^2}\right)\Delta t
+  \end{align*}
+\end{frame}
+
+\begin{frame}{Limits}
   \centering
+  \small
   \renewcommand{\arraystretch}{1.3}
-  \begin{tabular}{ll}
+  \begin{tabular}{lll}
     \toprule
-    \textbf{Quantity} & \textbf{Bound} \\
+    \textbf{Limit} & \textbf{Symbol} & \textbf{Value} \\
     \midrule
-    Longitudinal acceleration & $-9\ \text{m/s}^2 \;\le a_x \le\; 3.2\ \text{m/s}^2$ \\
-    Lateral acceleration      & $-3\ \text{m/s}^2 \;\le a_y \le\; 3\ \text{m/s}^2$ \\
-    Lateral speed             & $-3\ \text{m/s} \;\le v_y \le\; 3\ \text{m/s}$ \\
-    Heading                   & $|v_y| \le v_x \tan 15^\circ$ \\
-    Jerk                      & None \\
+    Max acceleration               & $a_{acc}$     & $2.0\ \text{m/s}^2$ \\
+    Max braking                    & $a_{brake}$   & $7.8\ \text{m/s}^2$ \\
+    Max lateral acceleration       & $A_{lat}$     & $2.0\ \text{m/s}^2$ \\
+    Jerk, longitudinal and lateral & $j,\ j_{lat}$ & $0.9\ \text{m/s}^3$ \\
+    Max curvature                  & $\kappa_{max}$ &$0.21\ \text{m}^{-1}$  \\
+    Speed limit                    & $v_{limit}$   & $34\text{m/s}$ \\
+    Speed limit constant                 & $\tau_v$      & $1.5$\,s \\
     \bottomrule
   \end{tabular}
 \end{frame}
@@ -105,9 +271,9 @@
     \toprule
     \textbf{Component} & \textbf{Handling} \\
     \midrule
-    Obstacle--ego collision  & Not handled; based on a rectangle drawn using
+    Obstacle ego collision  & Not handled; based on a rectangle drawn using
                                the centre of the front bumper \\
-    Road edge--ego collision & Not handled; $W \times L$ based on the body centre \\
+    Road edge ego collision & Not handled; $W \times L$ based on the body centre \\
     Obstacle potential       & Not handled; $W \times L$ based on the body centre \\
     \bottomrule
   \end{tabular}
@@ -135,74 +301,24 @@
  \end{frame}
 
 % =====================================================================
-\section{Revisiting Suggested Changes}
+\section{Adaptive Model}
 
-\begin{frame}{Analysis through potential fields}
+\begin{frame}{Adaptive framework}
   \vfill
   \centering
-  \includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{image_2.png}
+  \includegraphics[width=0.85\textwidth]{adaptive_framework.png}
+  \vspace{1em}
+
+  \begin{itemize}\small
+    \item A single fixed DIPF parameter set is a compromise over all traffic situations
+    \item \textbf{Input}: a compact description of the traffic around the ego, every $0.1$\,s
+    \item \textbf{Adaptive model}: decides how the DIPF parameters should change for that situation
+    \item \textbf{Output}: the DIPF parameters used by the controller at that step
+  \end{itemize}
   \vfill
 \end{frame}
 
-% =====================================================================
-\section{CMA-ES Optimisation}
-
-\begin{frame}{CMA-ES: the algorithm}
-  \begin{columns}[c]
-    \begin{column}{1.0\textwidth}
-      Keeps a \textbf{search cloud} $\mathcal{N}(m, \sigma^2 C)$ of parameter sets:
-      \begin{itemize}\small
-        \item centre $m$ \hfill 
-        \item size $\sigma$ \hfill 
-        \item shape $C$ \hfill 
-      \end{itemize}
-      \vspace{0.4em}
-      \textbf{Every generation}
-      \begin{enumerate}\small
-        \item \textbf{Sample}: sample 15 parameter sets from the cloud
-        \item \textbf{Select}: Score each sets and keep the best 7
-        \item \textbf{Move}: centre $\leftarrow$ weighted average of the 7
-        \item \textbf{Update}: $\sigma$ and $C$ 
-      \end{enumerate}
-    \end{column}
-
-  \end{columns}
-\end{frame}
-
-\begin{frame}{Differential Evolution (DE)}
-  \begin{columns}[c]
-    \begin{column}{1.0\textwidth}
-      Keeps a {population} of parameter sets $x_1, \dots, x_{N}$ spread over the search box
-      \vspace{0.4em}
-
-      \textbf{Every generation, for each member $x_i$}
-      \begin{enumerate}\small
-        \item \textbf{Mutate}: start at the best member, add scaled differences of random members
-              \[ v = x_{i} + F\,\big[(x_{r1} - x_{r2}) + (x_{r3} - x_{r4})\big] \]
-        \item \textbf{Crossover}: trial $u$ takes a block of coordinates from $v$, the rest from $x_i$
-        \item \textbf{Select}: score $u$ ; $u$ replaces $x_i$ {only if it is better}
-      \end{enumerate}
-      \vspace{0.3em}
-
-    \end{column}
-
-  \end{columns}
-\end{frame}
-
-
-
-\begin{frame}{Cost vs generation: base vs $|\Delta v|$ numerator}
-  \centering
-  \includegraphics[height=0.72\textheight]{val1.png}
-  \vspace{0.3em}
-
-  {\footnotesize Cost $= 1.1 - (\text{success})-0.1(\text{progress})$}
-\end{frame}
-
-% =====================================================================
-\section{Adaptive Control}
-
-\begin{frame}{Capturing of state}
+\begin{frame}{State}
   \begin{columns}[c]
     \begin{column}{0.5\textwidth}
       \centering
@@ -215,7 +331,7 @@
         \item TTC of vehicle front left/right
         \item TTC of vehicles rear (all), sides
         \item Gap front
-        \item Gap side
+        \item Gap front side
         \item Road clearance
         \item Speed
         \item Density
@@ -228,59 +344,82 @@
   \]
 \end{frame}
 
-\begin{frame}{Feature definitions}
+\begin{frame}{Feature definitions of the state}
   \centering
   \small
   \renewcommand{\arraystretch}{1.35}
   \begin{tabular}{ll}
     \toprule
-    \textbf{Feature} & \textbf{Definition} \\
+    \textbf{Feature} & \textbf{Definition}  \\
     \midrule
-    i)\ \ TTC ahead        & $1 - e^{-1/\mathrm{TTC}}$ \\
-    ii)\ TTC front side    & $1 - e^{-1/\mathrm{TTC}}$ \\
+    i)\ \ TTC ahead        & $1 - e^{-1/\mathrm{TTC}}$  \\
+    ii)\ TTC front side    & $1 - e^{-1/\mathrm{TTC}}$  \\
     iii) TTC rear, sides   & $1 - e^{-1/\mathrm{TTC}}$ \\
-    iv)\ Gap front         & $e^{-g_x/20\,\text{m}}$ \\
-    v)\ \ Gap front side   & $e^{-g_x/20\,\text{m}}$ \\
-    vi)\ Road clearance    & $e^{-r/1\,\text{m}}$ \\
-    vii) Speed             & $v_x / 34$ \\
-    viii) Density          & $1 - e^{-n/10}$ \\
+    iv)\ Gap front         & $e^{-g_x/20\,\text{m}}$    \\
+    v)\ \ Gap front side   & $e^{-g_x/20\,\text{m}}$  \\
+    vi)\ Road clearance    & $e^{-r/1\,\text{m}}$     \\
+    vii) Speed             & $v_x / 34$        \\
+    viii) Density          & $1 - e^{-n/10}$    \\
     \bottomrule
   \end{tabular}
   \vspace{0.6em}
 
-  
 \end{frame}
 
-\begin{frame}{Adaptive policy}
+\begin{frame}{Adaptive policy: the idea}
+  \begin{itemize}
+    \item We already have a good base set $p_0=\big(\lambda_{obs,0},\ \alpha_0,\ \tau_{y,0},\ \delta_{lane,0}\big)$
+    \item Rather than predicting the parameters from scratch we rescale the current values:
+          \[ p_t = p_0 \cdot m_t, \qquad m_t > 0 \]
+    \item The multiplier $m_t$ depends on the state $f_t$ and is learned.
+    \item We write the multiplier as an exponential, $m_t = e^{z_t}$
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Adaptive policy: mapping state to multiplier}
+  We need a model $g$ that maps the state to one exponent per parameter:
+  \[
+    g:\ f_t \in [0,1]^8 \;\longrightarrow\; z_t \in \mathbb{R}^4
+  \]
+  \textbf{A simple linear model:}
+  \[
+    z_t = W f_t + b, \qquad W \in \mathbb{R}^{4 \times 8},\ b \in \mathbb{R}^{4} \quad (36 \text{ params})
+  \]
+  \[
+    p_{k,t} = p_{k,t}\, e^{\,b_k + \sum_j w_{kj} f_j}
+  \]
+
+\end{frame}
+
+\begin{frame}{Adaptive policy: in depth}
   \begin{columns}[c]
-    \begin{column}{0.55\textwidth}
-      \textbf{Policy:} $W \in \mathbb{R}^{4 \times 8}$, $b \in \mathbb{R}^{4}$ \quad (36 params)
+    \begin{column}{0.52\textwidth}
+      Every control step ($\Delta t = 0.1$\,s):
       \begin{align*}
-        z_t^* &= \mathrm{clip}\big(W f_t + b,\ -\ln 10,\ +\ln 10\big) \\[2pt]
-        z_t   &= z_{t-1} + \frac{\Delta t}{T}\,\big(z_t^* - z_{t-1}\big) \\[2pt]
+        z_t^* &= \mathrm{clip}\big(W f_t + b,\ -\ln 10,\ +\ln 10\big) \\[4pt]
+        z_t   &= z_{t-1} + \frac{\Delta t}{T}\,\big(z_t^* - z_{t-1}\big) \\[4pt]
         p_t   &= p_0\, e^{z_t}
       \end{align*}
-      \[
-        p = \big(\lambda_{obs},\ \alpha,\ \tau_y,\ \delta_{lane}\big)
-      \]
     \end{column}
-    
+    \begin{column}{0.46\textwidth}
+      \begin{enumerate}\small
+        \item \textbf{Bounded params}: Output is clipped to $[0.1\,p_0,\ 10\,p_0]$
+        \item \textbf{Smoothing}: avoids big changes in the parameters
+      \end{enumerate}
+      \vspace{0.3em}
+    \end{column}
   \end{columns}
 \end{frame}
 
 \begin{frame}{Learned policy weights}
   \centering
-  \includegraphics[width=\textwidth]{image_1.png}
-  \vspace{0.4em}
-
-\end{frame}
-
-\begin{frame}{Training: base vs adaptive}
-  \centering
-  \includegraphics[height=0.72\textheight]{val2.png}
+  \includegraphics[width=\textwidth,height=0.66\textheight,keepaspectratio]{image_1.png}
   \vspace{0.3em}
 
+
 \end{frame}
+
+
 
 
 \end{document}
